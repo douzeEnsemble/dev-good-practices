@@ -1,0 +1,91 @@
+# Architecture exécutable (PHP-05, ARCH-01) : Controller → Service → Calculator → Repository.
+# Lancé avec --report-uncovered --fail-on-uncovered : une classe hors couche fait échouer.
+# Adapter les couches au projet ; chaque dépendance externe utilisée est une couche déclarée.
+parameters:
+  paths:
+    - ./src
+  exclude_files:
+    - .*test.*
+  layers:
+    - name: AppController
+      collectors:
+        - { type: classLike, value: '^App\\Controller\\.*' }
+    - name: AppService
+      collectors:
+        - { type: classLike, value: '^App\\Service\\.*' }
+    - name: AppCalculator
+      collectors:
+        - { type: classLike, value: '^App\\Calculator\\.*' }
+    - name: AppRepository
+      collectors:
+        - { type: classLike, value: '^App\\Repository\\.*' }
+    - name: AppEntity
+      collectors:
+        - { type: classLike, value: '^App\\Entity\\.*' }
+    - name: AppDTO
+      collectors:
+        - { type: classLike, value: '^App\\DTO\\.*' }
+    - name: AppException
+      collectors:
+        - { type: classLike, value: '^App\\Exception\\.*' }
+    - name: DoctrineORM
+      collectors:
+        - { type: classLike, value: '^Doctrine\\ORM\\.*' }
+    - name: DoctrineDBAL
+      collectors:
+        - { type: classLike, value: '^Doctrine\\DBAL\\.*' }
+    - name: DoctrinePersistence
+      collectors:
+        - { type: classLike, value: '^Doctrine\\(Persistence|Bundle\\DoctrineBundle)\\.*' }
+    - name: SymfonyHttp
+      collectors:
+        - { type: classLike, value: '^Symfony\\Component\\(HttpFoundation|HttpKernel|Routing)\\.*' }
+    - name: SymfonyFramework
+      collectors:
+        - { type: classLike, value: '^Symfony\\Bundle\\FrameworkBundle\\.*' }
+    - name: SymfonyOptionsResolver
+      collectors:
+        - { type: classLike, value: '^Symfony\\Component\\OptionsResolver\\.*' }
+
+  ruleset:
+    AppController:
+      - AppService
+      - AppRepository
+      - AppEntity
+      - AppDTO
+      - AppException
+      - SymfonyHttp
+      - SymfonyFramework
+      - SymfonyOptionsResolver
+    AppService:
+      - AppService
+      - AppCalculator
+      - AppRepository
+      - AppEntity
+      - AppDTO
+      - AppException
+      - DoctrineDBAL
+    AppCalculator:
+      - AppCalculator
+      - AppRepository
+      - AppEntity
+      - AppDTO
+      - DoctrineORM
+    AppRepository:
+      - AppRepository
+      - AppEntity
+      - AppDTO
+      - AppException
+      - DoctrineORM
+      - DoctrineDBAL
+      - DoctrinePersistence
+    AppEntity:
+      - AppEntity
+      - DoctrineORM
+      - DoctrineDBAL
+    AppDTO:
+      - AppDTO
+      - SymfonyHttp
+      - SymfonyOptionsResolver
+    AppException:
+      - SymfonyHttp

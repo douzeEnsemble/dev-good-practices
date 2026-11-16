@@ -1,0 +1,38 @@
+/.idea/
+/.vscode/
+
+###> symfony/framework-bundle ###
+/.env
+/.env.local
+/.env.local.php
+/.env.*.local
+/config/secrets/prod/prod.decrypt.private.php
+/public/bundles/
+/var/
+/vendor/
+###< symfony/framework-bundle ###
+
+###> phpunit/phpunit ###
+/phpunit.xml
+.phpunit.result.cache
+.phpunit.cache
+###< phpunit/phpunit ###
+
+# Sorties de mesure et caches
+build/*
+coverage.xml
+tests/last.html
+.php-cs-fixer.cache
+.deptrac.cache
+infection_summary.log
+infection_text.log
+
+# Outils isolés : leurs dépendances ne sont jamais versionnées
+tools/*/vendor
+tools/*/var
+
+# Surcharge locale de docker-compose (le .dist est versionné)
+/docker-compose.override.yaml
+
+# Généré par cache:clear (Symfony)
+/config/reference.php

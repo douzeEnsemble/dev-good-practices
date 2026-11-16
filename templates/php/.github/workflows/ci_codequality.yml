@@ -1,0 +1,79 @@
+name: CI Code Quality
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: ~
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+# Un job par outil : un échec se lit seul. Les noms sont ceux du ruleset (GIT-01).
+jobs:
+  editorconfig:
+    name: EditorConfig
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - run: docker run --rm --volume="$PWD:/check" mstruebing/editorconfig-checker:4.0.2 editorconfig-checker --exclude=".phar"
+
+  phpcsfixer:
+    name: Format (PHP-CS-Fixer)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/tools-composer
+        with:
+          dir: php-cs-fixer
+      - run: ./tools/php-cs-fixer/vendor/bin/php-cs-fixer check --diff
+
+  phpmd:
+    name: Complexité (PHPMD)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/tools-composer
+        with:
+          dir: phpmd
+      - run: ./tools/phpmd/vendor/bin/phpmd analyze src tests --format text --ruleset phpmd.ruleset.xml
+
+  psalm:
+    name: Analyse statique (Psalm)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/local-composer
+      - uses: ./.github/actions/tools-composer
+        with:
+          dir: psalm
+      - run: |
+          tools/psalm/vendor/bin/psalm -c psalm.xml --show-info=false --no-cache --find-unused-psalm-suppress --no-suggestions --root=.
+          tools/psalm/vendor/bin/psalm -c psalm-src-only.xml --show-info=false --no-cache --find-unused-psalm-suppress --no-suggestions --root=.
+
+  phpstan:
+    name: Analyse statique (PHPStan)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/local-composer
+      - uses: ./.github/actions/tools-composer
+        with:
+          dir: phpstan
+      - run: |
+          ./tools/phpstan/vendor/bin/phpstan clear-result-cache
+          ./tools/phpstan/vendor/bin/phpstan analyse --memory-limit=-1
+
+  deptrac:
+    name: Architecture (Deptrac)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/tools-composer
+        with:
+          dir: deptrac
+      - run: ./tools/deptrac/vendor/bin/deptrac analyse --report-uncovered --fail-on-uncovered

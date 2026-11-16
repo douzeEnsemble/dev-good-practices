@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<!-- Psalm strict sur src ET tests (PHP-04). Lancé avec l'option find-unused-psalm-suppress :
+    chaque suppression ci-dessous doit rester utile et justifiée. -->
+<psalm
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns="https://getpsalm.org/schema/config"
+    xsi:schemaLocation="https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd"
+    errorLevel="1"
+    resolveFromConfigFile="true"
+    findUnusedCode="true"
+    cacheDirectory="var/cache/psalm"
+>
+    <projectFiles>
+        <directory name="src"/>
+        <directory name="tests"/>
+        <ignoreFiles>
+            <directory name="vendor"/>
+            <file name="src/Kernel.php"/>
+            <file name="tests/bootstrap.php"/>
+            <!-- Chargeur d'object manager de PHPStan : lit $_SERVER sans garde, par construction -->
+            <file name="tests/object-manager.php"/>
+        </ignoreFiles>
+    </projectFiles>
+
+    <plugins>
+        <pluginClass class="Psalm\SymfonyPsalmPlugin\Plugin">
+            <containerXml>var/cache/test/App_KernelTestDebugContainer.xml</containerXml>
+        </pluginClass>
+        <pluginClass class="Psalm\PhpUnitPlugin\Plugin"/>
+    </plugins>
+
+    <issueHandlers>
+        <!-- Ajouter ici les suppressions que le code rend nécessaires, avec la raison (entités sans
+            constructeur, DTO/entités « inutilisés » car lus par Doctrine, actions de contrôleur appelées
+            par le routeur…). Une suppression inutile échoue (find-unused-psalm-suppress). -->
+        <ClassMustBeFinal>
+            <errorLevel type="suppress">
+                <!-- Services Symfony : non finaux pour pouvoir être mockés (PHP-06) -->
+                <directory name="src/Calculator"/>
+                <directory name="src/Repository"/>
+                <directory name="src/Service"/>
+            </errorLevel>
+        </ClassMustBeFinal>
+    </issueHandlers>
+</psalm>

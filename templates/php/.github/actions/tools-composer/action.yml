@@ -1,0 +1,20 @@
+name: Composer install (outil)
+description: Installe les dépendances d'un outil de tools/
+inputs:
+  dir:
+    description: "Le dossier de l'outil dans tools/"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - uses: ./.github/actions/local-php
+
+    - name: Cache tool's composer dependencies
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      with:
+        path: tools/${{ inputs.dir }}/vendor
+        key: composer-tool-${{ inputs.dir }}-${{ hashFiles(format('tools/{0}/composer.lock', inputs.dir)) }}
+
+    - name: Run tool's composer install
+      shell: bash
+      run: composer install --prefer-dist --no-progress --no-interaction --working-dir=tools/${{ inputs.dir }} --optimize-autoloader --no-dev

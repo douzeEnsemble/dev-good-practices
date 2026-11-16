@@ -1,0 +1,35 @@
+name: Security
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: ~
+  schedule:
+    - cron: "0 4 * * 1"
+  workflow_dispatch: ~
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  audit:
+    name: Audit des dépendances
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/local-php
+      # --locked : audite composer.lock sans rien installer (PHP-11)
+      - name: Application
+        run: composer audit --locked
+      - name: Chaque outil de tools/
+        run: |
+          for lock in tools/*/composer.lock; do
+            dir=$(dirname "$lock")
+            echo "Audit de $dir"
+            composer audit --locked --working-dir="$dir"
+          done

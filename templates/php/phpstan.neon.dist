@@ -1,0 +1,19 @@
+# Niveau max sur src ET tests (PHP-04). Retirer les extensions des paquets absents de tools/phpstan/composer.json.
+includes:
+	- tools/phpstan/vendor/phpstan/phpstan-doctrine/extension.neon
+	- tools/phpstan/vendor/phpstan/phpstan-doctrine/rules.neon
+	- tools/phpstan/vendor/phpstan/phpstan-symfony/extension.neon
+	- tools/phpstan/vendor/phpstan/phpstan-symfony/rules.neon
+	- tools/phpstan/vendor/phpstan/phpstan-phpunit/extension.neon
+
+parameters:
+	level: 9
+	paths:
+		- src
+		- tests
+	treatPhpDocTypesAsCertain: false
+	doctrine:
+		objectManagerLoader: tests/object-manager.php
+		reportUnknownTypes: true
+	symfony:
+		containerXmlPath: var/cache/test/App_KernelTestDebugContainer.xml

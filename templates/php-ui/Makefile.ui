@@ -1,0 +1,21 @@
+# Cibles des tests navigateur et de la validation W3C (PHP-14, PHP-15).
+# Ajouter à la fin du Makefile : `-include Makefile.ui`, puis
+#   - `tests-browser` dans la cible `tests`, `w3c` dans `code-quality`.
+# La couverture et la mutation excluent déjà la suite « Browser Test Suite ».
+
+.PHONY: tests-browser-chrome
+tests-browser-chrome: ## Tests navigateur sur Chrome
+	$(DOCKER_COMP) exec -e PANTHER_SELENIUM_HOST=http://chrome:4444/wd/hub -e PANTHER_BROWSER_NAME=chrome php php vendor/bin/phpunit --display-all --cache-directory=.phpunit.cache/chrome tests/src/Browser
+
+.PHONY: tests-browser-firefox
+tests-browser-firefox: ## Tests navigateur sur Firefox
+	$(DOCKER_COMP) exec -e PANTHER_SELENIUM_HOST=http://firefox:4444/wd/hub -e PANTHER_BROWSER_NAME=firefox php php vendor/bin/phpunit --display-all --cache-directory=.phpunit.cache/firefox tests/src/Browser
+
+.PHONY: tests-browser tb
+tests-browser: ## Tests navigateur (Chrome + Firefox en parallèle)
+	$(call parallel_runner,tests-browser-chrome tests-browser-firefox,browser test suites)
+tb: tests-browser
+
+.PHONY: w3c
+w3c: ## Valide le HTML des pages listées dans tools/w3c-validate/w3c_validate.sh
+	tools/w3c-validate/w3c_validate.sh

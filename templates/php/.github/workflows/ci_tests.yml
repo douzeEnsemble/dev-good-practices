@@ -1,0 +1,72 @@
+name: CI Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: ~
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  unit-tests:
+    name: Tests unitaires
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/docker-compose
+      - run: docker compose exec -T php php vendor/bin/phpunit tests/src/Unit
+
+  integration-tests:
+    name: Tests d'intégration
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/docker-compose
+      - run: docker compose exec -T php php vendor/bin/phpunit tests/src/Integration
+
+  coverage:
+    name: Tests unitaires + couverture
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/docker-compose
+      - name: Couverture
+        run: |
+          docker compose exec -e XDEBUG_MODE=coverage -T php php vendor/bin/phpunit \
+            --no-progress --exclude-testsuite="Browser Test Suite" \
+            --coverage-clover=build/coverage/coverage.xml \
+            --coverage-xml=build/coverage/coverage-xml \
+            --log-junit=build/coverage/junit.xml
+      - name: Seuil 100 %
+        run: docker compose exec -T php php tools/coverage/coverage.php build/coverage/coverage.xml 100 true
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: coverage-report
+          path: build/coverage/
+          retention-days: 14
+
+  mutation-testing:
+    name: Mutation testing (logique pure)
+    needs: coverage
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/docker-compose
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: coverage-report
+          path: build/coverage/
+      - run: docker compose exec -T php composer install --working-dir=tools/infection --prefer-dist --no-progress --no-interaction
+      - run: |
+          docker compose exec -T php php tools/infection/vendor/bin/infection \
+            --threads=4 --no-progress \
+            --skip-initial-tests --coverage=build/coverage \
+            --min-msi=100 --min-covered-msi=100 \
+            --filter=src

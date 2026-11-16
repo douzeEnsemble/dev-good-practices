@@ -1,0 +1,9 @@
+{
+    "type": "tools",
+    "require": {
+        "php": ">=8.5",
+        "vimeo/psalm": "^6.20",
+        "psalm/plugin-symfony": "^5.3",
+        "psalm/plugin-phpunit": "^0.19"
+    }
+}

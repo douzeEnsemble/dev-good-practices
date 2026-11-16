@@ -1,0 +1,69 @@
+name: Composer Major Updates
+
+# Complète composer-updates.yml : monte les contraintes directes à la dernière version
+# (majeure comprise) et ouvre UNE PR par projet composer (UPD-04). Le code n'est pas
+# adapté : une CI rouge signale un travail manuel.
+on:
+  schedule:
+    - cron: "27 5 * * *"
+  workflow_dispatch: ~
+
+permissions:
+  contents: read
+
+concurrency:
+  group: composer-major-updates
+  cancel-in-progress: true
+
+jobs:
+  list:
+    name: Projets composer
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.dirs.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - id: dirs
+        run: |
+          dirs=$(for f in composer.json tools/*/composer.json; do dirname "$f"; done | jq -R '{name: (if . == "." then "app" else sub("tools/"; "") end), dir: .}' | jq -sc '{include: .}')
+          echo "matrix=$dirs" >> "$GITHUB_OUTPUT"
+
+  major-updates:
+    name: Major updates (${{ matrix.name }})
+    needs: list
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.list.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/local-php
+      - name: Raise constraints to the latest major versions
+        working-directory: ${{ matrix.dir }}
+        run: |
+          set -euo pipefail
+          outdated=$(composer outdated --direct --format=json)
+          majors=$(jq -r '[.installed[] | select(."latest-status" == "update-possible")] | length' <<< "$outdated")
+          if [ "$majors" -eq 0 ]; then echo "No major update available."; exit 0; fi
+          # Tous les paquets directs en retard ensemble : une majeure demande souvent
+          # que ses plugins montent aussi.
+          prod=(); dev=()
+          while read -r name latest; do
+            constraint="${name}:^${latest#v}"
+            if jq -e --arg n "$name" '."require-dev"[$n]' composer.json > /dev/null; then dev+=("$constraint"); else prod+=("$constraint"); fi
+          done < <(jq -r '.installed[] | select(."latest-status" != "up-to-date") | "\(.name) \(.latest)"' <<< "$outdated")
+          ok=true
+          if [ "${#prod[@]}" -gt 0 ]; then composer require "${prod[@]}" --with-all-dependencies --no-scripts --optimize-autoloader || ok=false; fi
+          if [ "$ok" = true ] && [ "${#dev[@]}" -gt 0 ]; then composer require --dev "${dev[@]}" --with-all-dependencies --no-scripts --optimize-autoloader || ok=false; fi
+          if [ "$ok" != true ]; then echo "::warning::Majeures irrésolubles ensemble, rien à proposer."; git checkout -- .; fi
+      - uses: peter-evans/create-pull-request@3ffccacd46053766916f087ce41d627c0b8cf2d1 # v8
+        with:
+          token: ${{ secrets.UPDATE_TOKEN }}
+          branch: chore/composer-major-updates-${{ matrix.name }}
+          delete-branch: true
+          commit-message: "build(deps): composer major updates (${{ matrix.name }})"
+          title: "build(deps): composer major updates (${{ matrix.name }})"
+          body: |
+            Contraintes montées à la dernière version, majeure comprise, par `composer-major-updates.yml`.
+            Le code n'est pas adapté : si les checks échouent, cette montée demande un travail manuel.
+          labels: dependencies

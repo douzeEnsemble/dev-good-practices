@@ -1,0 +1,58 @@
+version: 2
+updates:
+  # Application + chaque outil de tools/ (PHP-12) : ajouter un bloc par outil
+  - package-ecosystem: composer
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: build
+      prefix-development: chore
+      include: scope
+  - package-ecosystem: composer
+    directory: /tools/php-cs-fixer
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope
+  # … phpstan, psalm, phpmd, deptrac, infection, jsonlint : même bloc
+
+  - package-ecosystem: docker
+    directories:
+      - /.docker/php
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: build
+      include: scope
+    ignore:
+      # Un bump de PHP touche aussi composer.json et tools/*/composer.json : workflow dédié (UPD-01)
+      - dependency-name: php
+    groups:
+      docker:
+        patterns: ["*"]
+
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      docker-compose:
+        patterns: ["*"]
+
+  - package-ecosystem: github-actions
+    directories:
+      - /
+      - /.github/actions/*
+    schedule:
+      interval: daily
+    commit-message:
+      prefix: ci
+      include: scope
+    groups:
+      github-actions:
+        patterns: ["*"]

@@ -1,0 +1,46 @@
+name: CI Infra Quality
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: ~
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+# Images épinglées : la même version qu'en local (cibles Make) ; mises à jour par workflow (UPD-01).
+jobs:
+  docker-compose-lint:
+    name: Linter Docker Compose
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - run: docker run --rm -v "$PWD:/app" zavoloklom/dclint:3.1.0-alpine -r .
+
+  dockerfile-lint:
+    name: Linter Dockerfile
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # Un hadolint par Dockerfile
+      - run: find .docker -name Dockerfile -print -exec sh -c 'docker run --rm -i hadolint/hadolint:v2.15.1-alpine hadolint - < "$1"' _ {} \;
+
+  dotenv-lint:
+    name: Linter DotEnv
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - run: docker run --rm -v "$PWD:/app" -w /app dotenvlinter/dotenv-linter:4.0.0 check --recursive .
+
+  mock-refs:
+    name: Références des mocks
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # Aucune référence cassée, aucun fichier de mock orphelin (PHP-10)
+      - run: make check-moco-refs

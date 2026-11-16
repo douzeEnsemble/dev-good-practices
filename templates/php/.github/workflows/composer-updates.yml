@@ -1,0 +1,38 @@
+name: Composer Updates
+
+# Met à jour l'application et chaque outil de tools/ dans leurs contraintes (UPD-03 :
+# ne change que des versions ; une CI rouge signale un travail manuel).
+on:
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch: ~
+
+permissions:
+  contents: read
+
+concurrency:
+  group: composer-updates
+  cancel-in-progress: true
+
+jobs:
+  composer-updates:
+    name: Update Composer dependencies
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/local-php
+      - name: Update application and tools
+        run: |
+          for dir in . tools/*/; do
+            [ -f "$dir/composer.json" ] || continue
+            composer update --bump-after-update --with-all-dependencies --optimize-autoloader --working-dir="$dir"
+          done
+      - uses: peter-evans/create-pull-request@3ffccacd46053766916f087ce41d627c0b8cf2d1 # v8
+        with:
+          # Jeton dédié (UPD-02) : GITHUB_TOKEN ne déclencherait pas la CI
+          token: ${{ secrets.UPDATE_TOKEN }}
+          branch: chore/composer-updates
+          delete-branch: true
+          commit-message: "build(deps): composer updates"
+          title: "build(deps): composer updates"
+          labels: dependencies

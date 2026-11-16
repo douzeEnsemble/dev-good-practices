@@ -1,0 +1,7 @@
+{
+    "type": "tools",
+    "require": {
+        "php": ">=8.5",
+        "seld/jsonlint": "^1.11"
+    }
+}

@@ -1,0 +1,13 @@
+# Copie locale : docker-compose.override.yaml (gitignoré). Ici, un exemple de nom d'hôte
+# partagé entre projets sur un réseau Docker local créé une fois : docker network create app-local
+networks:
+  app-local:
+    external: true
+
+services:
+  web:
+    networks:
+      default: {}
+      app-local:
+        aliases:
+          - app.local

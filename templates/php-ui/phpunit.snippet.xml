@@ -1,0 +1,17 @@
+<!-- À fusionner dans phpunit.xml.dist (PHP-14). Panther est une dépendance de dev :
+    composer require --dev symfony/panther -->
+
+<!-- dans <php> -->
+<server name="PANTHER_APP_ENV" value="test" force="true" />
+<server name="PANTHER_EXTERNAL_BASE_URI" value="http://web:8081" force="true" />
+<env name="PANTHER_EXTERNAL_BASE_URI" value="http://web:8081" force="true" />
+
+<!-- dans <testsuites> (la suite principale exclut déjà tests/src/Browser) -->
+<testsuite name="Browser Test Suite">
+    <directory>tests/src/Browser</directory>
+</testsuite>
+
+<!-- à côté de <testsuites> -->
+<extensions>
+    <bootstrap class="Symfony\Component\Panther\ServerExtension" />
+</extensions>

@@ -1,0 +1,17 @@
+name: PHP prepare
+description: Prépare l'environnement PHP (.env.ci copié en .env)
+runs:
+  using: "composite"
+  steps:
+    - name: Copy .env file
+      shell: bash
+      run: cp .env.ci .env
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+      with:
+        php-version: "8.5"
+        # Adapter à composer.json (ext-*)
+        extensions: ctype, dom, iconv, intl, json, libxml, mbstring, simplexml, tokenizer, xml, xmlwriter, zip
+        tools: none
+        coverage: none

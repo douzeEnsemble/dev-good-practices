@@ -1,0 +1,16 @@
+name: Composer install (application)
+description: Installe les dépendances de l'application
+runs:
+  using: "composite"
+  steps:
+    - uses: ./.github/actions/local-php
+
+    - name: Cache composer dependencies
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
+      with:
+        path: vendor
+        key: composer-${{ hashFiles('composer.lock') }}
+
+    - name: Run composer install
+      shell: bash
+      run: composer install --prefer-dist --no-progress --no-interaction

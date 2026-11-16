@@ -1,0 +1,25 @@
+**/*.log
+**/*.md
+**/*.cache
+**/.DS_Store
+**/.git/
+**/.gitignore
+**/Dockerfile
+**/docker-compose.*
+.github/
+build/
+docs/
+doc/
+tests/
+tools/
+var/
+vendor/
+.editorconfig
+.env
+*.env.*
+# consommé par la cible php_prod du Dockerfile (`mv .env.dev .env`) : ne pas retirer
+!.env.dev
+coverage.xml
+infection.json5
+psalm*.xml
+phpmd.ruleset.xml

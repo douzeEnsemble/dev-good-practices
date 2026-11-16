@@ -1,0 +1,12 @@
+{
+    "type": "tools",
+    "require": {
+        "php": ">=8.5",
+        "infection/infection": "^0.35"
+    },
+    "config": {
+        "allow-plugins": {
+            "infection/extension-installer": true
+        }
+    }
+}

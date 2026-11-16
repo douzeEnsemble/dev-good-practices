@@ -1,0 +1,10 @@
+{
+    "type": "tools",
+    "require": {
+        "php": ">=8.5",
+        "phpstan/phpstan": "^2.3",
+        "phpstan/phpstan-symfony": "^2.1",
+        "phpstan/phpstan-doctrine": "^2.1",
+        "phpstan/phpstan-phpunit": "^2.1"
+    }
+}

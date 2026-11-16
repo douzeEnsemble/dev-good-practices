@@ -1,0 +1,7 @@
+{
+    "type": "tools",
+    "require": {
+        "php": ">=8.5",
+        "phpmd/phpmd": "^3.0"
+    }
+}

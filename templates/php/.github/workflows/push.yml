@@ -1,0 +1,172 @@
+name: Image Docker
+
+# Une release GitHub publiée construit l'image (PHP-13) :
+#   prereleased => staging, released => prod.
+# Deux builds natifs en parallèle (arm64, amd64 : pas d'émulation), un manifest multi-arch,
+# puis une PR sur le dépôt d'infrastructure qui bump la version : le déploiement est une PR
+# relue, le retour arrière un revert.
+#
+# À configurer — variables du dépôt : INFRA_REPOSITORY (proprio/dépôt d'infra) et
+# INFRA_STACK_PATH (chemin du dossier de la pile, {target} = staging|prod) ; secret :
+# INFRA_TOKEN (jeton dédié, UPD-02). Sans INFRA_REPOSITORY, seule l'image est publiée.
+on:
+  release:
+    types: [released, prereleased]
+
+permissions:
+  contents: read
+
+env:
+  REGISTRY: ghcr.io
+  VERSION_FILE: resources/metadata/version
+
+jobs:
+  meta:
+    name: Version
+    runs-on: ubuntu-24.04
+    outputs:
+      image: ${{ steps.m.outputs.image }}
+      version: ${{ steps.m.outputs.version }}
+      suffix: ${{ steps.m.outputs.suffix }}
+      target: ${{ steps.m.outputs.target }}
+    steps:
+      - id: m
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          PRERELEASE: ${{ github.event.release.prerelease }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          if [ "$PRERELEASE" = "true" ]; then suffix=-prerelease; target=staging; else suffix=-release; target=prod; fi
+          echo "image=${REGISTRY}/$(echo "$REPOSITORY" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG}${suffix}" >> "$GITHUB_OUTPUT"
+          echo "suffix=$suffix" >> "$GITHUB_OUTPUT"
+          echo "target=$target" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Image (${{ matrix.arch }})
+    needs: meta
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - { arch: arm64, runner: ubuntu-24.04-arm }
+          - { arch: amd64, runner: ubuntu-24.04 }
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - name: Écrire la version affichée par l'application
+        env:
+          VERSION: ${{ needs.meta.outputs.version }}
+        run: |
+          mkdir -p "$(dirname "$VERSION_FILE")"
+          echo "$VERSION" > "$VERSION_FILE"
+      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          file: ./.docker/php/Dockerfile
+          target: php_prod
+          push: true
+          platforms: linux/${{ matrix.arch }}
+          tags: ${{ needs.meta.outputs.image }}:${{ needs.meta.outputs.version }}-${{ matrix.arch }}
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+          cache-from: type=gha,scope=${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
+
+  manifest:
+    name: Manifest multi-arch
+    needs: [meta, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - name: Créer et pousser le manifest
+        env:
+          IMAGE: ${{ needs.meta.outputs.image }}
+          VERSION: ${{ needs.meta.outputs.version }}
+          SUFFIX: ${{ needs.meta.outputs.suffix }}
+        run: |
+          docker buildx imagetools create \
+            --tag "$IMAGE:$VERSION" --tag "$IMAGE:latest$SUFFIX" \
+            "$IMAGE:$VERSION-arm64" "$IMAGE:$VERSION-amd64"
+
+  bump-infra:
+    name: PR de bump sur le dépôt d'infra
+    needs: [meta, manifest]
+    if: vars.INFRA_REPOSITORY != ''
+    runs-on: ubuntu-24.04
+    concurrency:
+      group: infra-bump
+      cancel-in-progress: false
+    env:
+      GH_TOKEN: ${{ secrets.INFRA_TOKEN }}
+      INFRA_REPOSITORY: ${{ vars.INFRA_REPOSITORY }}
+      INFRA_STACK_PATH: ${{ vars.INFRA_STACK_PATH }}
+      TARGET: ${{ needs.meta.outputs.target }}
+      NEW_VERSION: ${{ needs.meta.outputs.version }}
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+    steps:
+      - name: Ouvrir ou mettre à jour la PR
+        run: |
+          set -euo pipefail
+          STACK="${INFRA_STACK_PATH//\{target\}/$TARGET}"
+          BRANCH="bump-${TARGET}-versions"
+
+          git clone --quiet "https://x-access-token:${GH_TOKEN}@github.com/${INFRA_REPOSITORY}.git" infra
+          cd infra
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Réutiliser la PR ouverte (sa branche) s'il y en a une
+          PR_NUMBER=$(gh pr list --repo "$INFRA_REPOSITORY" --head "$BRANCH" --state open --json number --jq '.[0].number // empty')
+          if [ -n "$PR_NUMBER" ] && git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
+            git checkout --quiet -B "$BRANCH" "origin/$BRANCH"
+            git merge --quiet --no-edit origin/main
+          else
+            PR_NUMBER=""
+            git checkout --quiet -b "$BRANCH" origin/main
+          fi
+
+          # La pile lit sa version dans PROJECT_VERSION
+          sed -i "s|^PROJECT_VERSION=.*|PROJECT_VERSION=${NEW_VERSION}|" "${STACK}/.env"
+          if git diff --quiet; then
+            echo "${STACK} est déjà en ${NEW_VERSION}"
+          else
+            git commit --quiet -am "chore(${TARGET}): update ${STACK} to ${NEW_VERSION}"
+          fi
+
+          # Plus de différence avec main : rien à proposer, on ferme la PR ouverte
+          if git diff --quiet origin/main HEAD; then
+            echo "Rien à changer par rapport à main"
+            [ -n "$PR_NUMBER" ] && gh pr close "$PR_NUMBER" --repo "$INFRA_REPOSITORY" --comment "Déjà à jour sur main."
+            exit 0
+          fi
+
+          git push --quiet origin "$BRANCH"
+
+          LIST=$(git diff origin/main HEAD -U0 -- '*/.env' | awk '
+            /^\+\+\+ b\// { sub(/^\+\+\+ b\//, ""); sub(/\/\.env$/, ""); stack = $0 }
+            /^-PROJECT_VERSION=/ { old = substr($0, 18) }
+            /^\+PROJECT_VERSION=/ { print "- `" stack "` : " old " → " substr($0, 18) }')
+          BODY=$(printf 'Bump de `PROJECT_VERSION` des piles %s :\n\n%s\n\nOuverte par le build de %s %s.' "$TARGET" "$LIST" "$GITHUB_REPOSITORY" "$RELEASE_TAG")
+
+          if [ -n "$PR_NUMBER" ]; then
+            gh pr edit "$PR_NUMBER" --repo "$INFRA_REPOSITORY" --body "$BODY"
+          else
+            gh pr create --repo "$INFRA_REPOSITORY" --base main --head "$BRANCH" \
+              --title "chore(${TARGET}): update to the latest ${NEW_VERSION##*-} versions" --body "$BODY"
+          fi

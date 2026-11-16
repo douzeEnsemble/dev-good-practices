@@ -1,0 +1,45 @@
+name: Infra Updates
+
+# Complète Dependabot (images Docker, compose, actions) avec ce qu'il ne sait pas faire
+# (UPD-01), voir scripts/infra-updates.py :
+#   - php  : image PHP + contrainte « php » de chaque composer.json + hashes des lockfiles + setup-php
+#   - pins : images épinglées dans le Makefile et les workflows
+# Dernières versions, majeures comprises. Rien n'est adapté au-delà des numéros de version
+# (UPD-03) : une CI rouge sur la PR signale un travail manuel.
+on:
+  schedule:
+    - cron: "47 5 * * *"
+  workflow_dispatch: ~
+
+permissions:
+  contents: read
+
+concurrency:
+  group: infra-updates
+  cancel-in-progress: true
+
+jobs:
+  infra-updates:
+    name: Infra updates (${{ matrix.target }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [php, pins]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/local-php
+      - name: Bump ${{ matrix.target }}
+        run: |
+          printf 'Montée faite par `infra-updates.yml` ; le code n'"'"'est pas adapté, une CI rouge signale un travail manuel.\n\n' > "$RUNNER_TEMP/summary.md"
+          python3 scripts/infra-updates.py ${{ matrix.target }} --summary "$RUNNER_TEMP/summary.md"
+      - uses: peter-evans/create-pull-request@3ffccacd46053766916f087ce41d627c0b8cf2d1 # v8
+        with:
+          # Jeton dédié (UPD-02) : GITHUB_TOKEN ne déclencherait pas la CI
+          token: ${{ secrets.UPDATE_TOKEN }}
+          branch: chore/infra-updates-${{ matrix.target }}
+          delete-branch: true
+          commit-message: "build(deps): infra updates (${{ matrix.target }})"
+          title: "build(deps): infra updates (${{ matrix.target }})"
+          body-path: ${{ runner.temp }}/summary.md
+          labels: dependencies

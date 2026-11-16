@@ -1,0 +1,30 @@
+{
+    $schema: "vendor/infection/infection/resources/schema.json",
+    // Seuils MSI = 100 (PHP-08) : passés en ligne de commande (--min-msi=100 --min-covered-msi=100),
+    // par le Makefile et la CI. Ne pas les baisser.
+    source: {
+        directories: [
+            "src",
+        ],
+    },
+    mutators: {
+        "@default": true,
+        // Une exclusion ne s'ajoute qu'avec la raison écrite à côté, pour un mutant ÉQUIVALENT
+        // (même comportement observable). Sinon : renforcer le test ou simplifier le code (MUT-06).
+        // Exemple :
+        // ArrayOneItem: {
+        //     ignore: [
+        //         // $slugs est toujours un tableau littéral à un élément ici : "count() > 1"
+        //         // ne peut pas être vrai, le mutant est équivalent.
+        //         "App\\Service\\ExampleService::upsert",
+        //     ],
+        // },
+    },
+    tmpDir: "/app/var/cache/infection",
+    timeout: 30,
+    testFramework: "phpunit",
+    logs: {
+        "text": "/app/build/infection/infection_text.log",
+        "summary": "/app/build/infection/infection_summary.log",
+    },
+}

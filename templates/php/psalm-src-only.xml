@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<!-- Seconde passe sur src seul : sans les tests, le code non utilisé du produit apparaît
+    (un test qui l'appelle le masquerait dans psalm.xml). Lancé à la suite de psalm.xml. -->
+<psalm
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns="https://getpsalm.org/schema/config"
+    xsi:schemaLocation="https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd"
+    errorLevel="1"
+    resolveFromConfigFile="true"
+    findUnusedCode="true"
+    cacheDirectory="var/cache/psalm"
+>
+    <projectFiles>
+        <directory name="src"/>
+        <ignoreFiles>
+            <file name="src/Kernel.php"/>
+            <directory name="vendor"/>
+        </ignoreFiles>
+    </projectFiles>
+
+    <plugins>
+        <pluginClass class="Psalm\SymfonyPsalmPlugin\Plugin">
+            <containerXml>var/cache/test/App_KernelTestDebugContainer.xml</containerXml>
+        </pluginClass>
+    </plugins>
+
+    <issueHandlers>
+        <!-- Ajouter ici les suppressions propres à src seul (entités, DTO…) quand le code les rend
+            nécessaires : une suppression inutile échoue (find-unused-psalm-suppress). -->
+        <ClassMustBeFinal>
+            <errorLevel type="suppress">
+                <directory name="src/Calculator"/>
+                <directory name="src/Repository"/>
+                <directory name="src/Service"/>
+            </errorLevel>
+        </ClassMustBeFinal>
+    </issueHandlers>
+</psalm>

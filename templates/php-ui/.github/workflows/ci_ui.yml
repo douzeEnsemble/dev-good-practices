@@ -1,0 +1,48 @@
+name: CI UI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: ~
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+# Les noms sont ceux du ruleset (GIT-01) : à ajouter à .github/rulesets/main.json.
+jobs:
+  browser-tests-chrome:
+    name: Tests navigateur (Chrome)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/docker-compose
+      - run: |
+          docker compose exec \
+            -e PANTHER_SELENIUM_HOST=http://chrome:4444/wd/hub \
+            -e PANTHER_BROWSER_NAME=chrome \
+            -T php php vendor/bin/phpunit tests/src/Browser
+
+  browser-tests-firefox:
+    name: Tests navigateur (Firefox)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/docker-compose
+      - run: |
+          docker compose exec \
+            -e PANTHER_SELENIUM_HOST=http://firefox:4444/wd/hub \
+            -e PANTHER_BROWSER_NAME=firefox \
+            -T php php vendor/bin/phpunit tests/src/Browser
+
+  w3c:
+    name: Validation W3C
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: ./.github/actions/docker-compose
+      - run: tools/w3c-validate/w3c_validate.sh

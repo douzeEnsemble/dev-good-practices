@@ -1,6 +1,6 @@
 # Guide qualité
 
-> Version **3.7** · 17 novembre 2026 · tiré de projets web (Worker + Durable Object, SPA/PWA, JS sans build, site statique), complété par les pratiques d'un backend PHP/Symfony.
+> Version **3.8** · 17 novembre 2026 · tiré de projets web (Worker + Durable Object, SPA/PWA, JS sans build, site statique), complété par les pratiques d'un backend PHP/Symfony.
 > Référence vivante : à faire évoluer ici, puis à rejouer sur les projets (voir [§ 9 Faire évoluer le guide](#9-faire-évoluer-le-guide)).
 
 Ce guide sert à deux choses :
@@ -108,9 +108,10 @@ Ce qui est **commun à toutes les familles** : noms de jobs, ruleset, audit, Cod
 
 | ID | Règle |
 |---|---|
-| CI-10 | Audit en deux commandes dans le même job : `npm audit --omit=dev --audit-level=moderate` (production), puis `npm audit --audit-level=high` (tout). Une exception sans correctif se documente à côté de la commande. |
+| CI-10 | Audit en deux commandes dans le même job : `npm audit --omit=dev --audit-level=moderate` (production), puis l'audit complet au niveau `high` par `node .github/scripts/audit-check.mjs --level=high` (tout, CI-13). Un avis de production sans correctif se documente à côté de la commande ; un avis de développement sans correctif passe par CI-13. |
 | CI-11 | Artefacts conservés 14 jours ; sur PR, upload de `pr-build-preview` (7 jours). |
 | CI-12 | Playwright : `webServer` = `vite dev --port 5173 --strictPort --host 127.0.0.1` (`localhost` se résout en IPv6 seul sur les runners), timeout 120 s, `retries: 1` et `forbidOnly` en CI, `trace: "on-first-retry"`. |
+| CI-13 | **Un avis sans correctif ne se contourne pas en baissant le seuil, il s'exempte par écrit.** [`audit-check.mjs`](templates/.github/scripts/audit-check.mjs) (identique dans tous les dépôts) remplace `npm audit --audit-level=high` dans `ci.yml` et `audit.yml` : il échoue sur tout avis de gravité `high` ou plus, sauf ceux de [`.github/audit-exceptions.json`](templates/.github/audit-exceptions.json) (`{ "id": "GHSA-…", "reason": "…", "expires": "AAAA-MM-JJ" }`, `[]` par défaut). Une exception a une **raison** et une **date d'expiration** (30 jours au plus, à renouveler après vérification qu'aucun correctif n'est sorti) ; expirée, elle ne protège plus et l'audit repasse au rouge ; sans effet (l'avis a disparu), elle est signalée pour être retirée. Réservé aux dépendances de **développement** : l'audit de production (CI-10) n'a pas d'exception. Raison : un avis publié sans version corrigée (cas du § 6) laisse l'audit rouge sur toutes les PR sans aucune action possible ; baisser le seuil masquerait aussi tous les futurs avis, alors qu'une exception nomme un seul avis et expire. Vérifier : `audit-check.mjs` identique au modèle et appelé par `ci.yml`. |
 
 ### 3.6 Sécurité (`SEC-*`)
 
@@ -323,6 +324,8 @@ Principe : **une règle ou une famille de règles par PR**, CI verte entre chaqu
 - **PR de bot sans CI** : une PR ouverte par un workflow avec `GITHUB_TOKEN` ne déclenche aucun workflow, donc les checks requis n'arrivent jamais et la PR reste bloquée. Jeton dédié (UPD-02). Un projet PHP l'évite avec un secret propre à sa PR de déploiement.
 - **Exemple de clé dans la doc** : un README de backend PHP contenait un exemple de clé d'API qui ressemblait à une vraie. Toujours un placeholder (`<votre-clé>`) ; révoquer si c'était une vraie.
 
+- **Avis d'audit sans version corrigée** : un avis `high` sur une dépendance de développement transitive (ReDoS dans `picomatch`, toutes versions jusqu'à la dernière, 19 octobre 2026) a fait échouer « Audit des dépendances » sur tous les dépôts le jour de sa publication. `npm audit fix` n'y change rien et sa suggestion `--force` est un retour en arrière (ancienne majeure d'un outil). Ne pas baisser le seuil : poser une exception datée (CI-13), puis la retirer quand un correctif sort.
+
 ### Mutation testing
 - **CI longue à cause de la file d'attente, pas du calcul** : un push qui lance la CI de plusieurs dépôts en même temps (quatre dépôts à 40-60 jobs) se partage vraisemblablement le quota de jobs simultanés du compte (hypothèse non vérifiée : le plan n'était pas lisible par l'API) ; des jobs de 5 min attendaient 23 min un runner (durée réelle 25-33 min contre 12-18 min pour un dépôt seul). Mesurer la somme des durées de jobs, la durée du plus long et la concurrence atteinte avant de redécouper ; réduire le calcul total (MUT-10) plutôt que multiplier les jobs. Mesuré sur les dépôts de référence.
 - **Job « skipped » en amont qui saute le build** : un job sans `if` porte un `success()` implicite qui exige que *tous* ses ancêtres aient réussi, y compris ceux de plus haut dans la chaîne `needs`. Avec MUT-10, les modules de mutation sont *skipped* sur un push ou une PR sans module concerné, et `build` l'était aussi alors que ses `needs` directs étaient verts. Ajouter `if: ${{ !failure() && !cancelled() }}` au job final. Découvert sur le premier push après le passage à la mutation de nuit.
@@ -357,6 +360,7 @@ Les modèles sont de **vrais fichiers** dans ce dépôt, à copier puis adapter.
 | CI-12 | [`templates/playwright.config.ts`](templates/playwright.config.ts) | `testDir`, projets |
 | SEC-03 | [`templates/.github/workflows/codeql.yml`](templates/.github/workflows/codeql.yml) | langages |
 | SEC-04, CI-10 | [`templates/.github/workflows/audit.yml`](templates/.github/workflows/audit.yml) | — |
+| CI-13 | [`templates/.github/scripts/audit-check.mjs`](templates/.github/scripts/audit-check.mjs), [`templates/.github/audit-exceptions.json`](templates/.github/audit-exceptions.json) | **rien** pour le script (identique partout) ; les exceptions du projet |
 | SEC-02 | [`templates/.github/dependabot.yml`](templates/.github/dependabot.yml) | — |
 | GIT-01/02 | [`templates/.github/rulesets/main.json`](templates/.github/rulesets/main.json) | ajouter « Worker de synchronisation » (CI-07) si applicable |
 | GIT-03 | [`scripts/apply-rulesets.sh`](scripts/apply-rulesets.sh) | — |
@@ -392,6 +396,7 @@ Ce dépôt ne contient **aucun état par projet** : chaque projet suit son propr
 | SEC-02…04, GIT-01 | présence de `dependabot.yml`, `codeql.yml`, `audit.yml`, `rulesets/main.json` |
 | COV-01, MUT-02 | seuils à 100 dans les configs |
 | MUT-08 | empreinte de `mutation-matrix.mjs` identique au modèle |
+| CI-13 | `audit-check.mjs` identique au modèle et appelé par `ci.yml` |
 | MUT-10 | `mutation-select.mjs` identique au modèle et déclencheur `schedule` dans `ci.yml` (famille à matrice de mutation) ; `schedule` seul pour un projet à un seul job |
 | ARCH-01/02 | `.dependency-cruiser.*` présent et `depcruise` dans `package.json` |
 | UPD-01/04 | `node-updates.yml` et `major-updates.yml` présents |
@@ -431,3 +436,4 @@ Ce dépôt ne contient **aucun état par projet** : chaque projet suit son propr
 | 3.5 | 2026-11-17 | Mineure, tirée de la mesure des temps de CI : MUT-10 (mutation complète la nuit, modules touchés sur les PR, aucune sur `main`) avec `mutation-select.mjs` et `ci.yml` à jour ; piège « CI longue à cause de la file d'attente » (§ 6). Aucun nom de check modifié. |
 | 3.6 | 2026-11-17 | Mineure, tirée du premier push après MUT-10 : le modèle `ci.yml` ajoute `if: ${{ !failure() && !cancelled() }}` au job `build` (sinon sauté quand les modules de mutation sont *skipped*) et piège correspondant au § 6 ; MUT-10 précise que l'objectif de 10 minutes ne vaut pas pour le contrôle de nuit. Aucun nom de check modifié. |
 | 3.7 | 2026-11-17 | Mineure : MUT-10 s'applique aussi aux projets à un seul job de mutation (nuit et lancement manuel seulement, sauté sur PR et push), quelle que soit la durée du job ; `check-conformity.sh` exige `schedule` dans `ci.yml` (famille npm). Aucun nom de check modifié. |
+| 3.8 | 2026-11-17 | Mineure, tirée d'un avis d'audit `high` sans correctif publié (`picomatch`) qui a rougi l'audit de tous les dépôts : CI-13 (`audit-check.mjs`, exceptions datées pour les dépendances de développement, seuil inchangé), `ci.yml` et `audit.yml` l'appellent, piège au § 6, `check-conformity.sh` vérifie l'empreinte du script. Aucun nom de check modifié. |

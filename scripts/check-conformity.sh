@@ -74,6 +74,7 @@ for d in "$@"; do
     echo "--  $n MUT-08 pas de matrice (un seul job)"
     grep -q 'schedule:' "$d/.github/workflows/ci.yml" 2>/dev/null; check "$n" "MUT-10 mutation de nuit, job unique (schedule dans ci.yml)" $? ""
   fi
+  [ "$(md5sum "$d/.github/scripts/audit-check.mjs" 2>/dev/null | cut -d' ' -f1)" = "$(md5sum "$tpl/.github/scripts/audit-check.mjs" | cut -d' ' -f1)" ] && grep -q 'audit-check.mjs' "$d/.github/workflows/ci.yml" 2>/dev/null; check "$n" "CI-13 audit-check.mjs identique au modèle et appelé par ci.yml" $? ""
   s=$(ls "$d"/stryker.config.* 2>/dev/null | head -1)
   if [ -n "$s" ]; then grep -Eq '"?break"?: *100' "$s"; check "$n" "MUT-02 seuil break 100" $? ""
   else echo "KO  $n stryker.config absent"; fail=1; fi

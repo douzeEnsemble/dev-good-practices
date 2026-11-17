@@ -91,8 +91,9 @@ jobs:
       - run: npm ci
       - name: Audit des dépendances de production
         run: npm audit --omit=dev --audit-level=moderate
+      # Exceptions datées pour un avis sans correctif : .github/audit-exceptions.json (CI-13).
       - name: Audit complet (production + développement)
-        run: npm audit --audit-level=high
+        run: node .github/scripts/audit-check.mjs --level=high
 
   mutation-testing-plan:
     name: Mutation testing — plan

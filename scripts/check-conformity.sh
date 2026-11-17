@@ -91,6 +91,14 @@ for d in "$@"; do
     grep -rq 'navigateFallbackDenylist' "$d"/vite.config.* 2>/dev/null && echo "ok  $n PWA-03 navigateFallbackDenylist" || echo "--  $n PWA-03 pas de denylist (API sur une autre origine ?)"
     grep -rlq 'context\.setOffline' "$d/e2e" "$d/tests" 2>/dev/null; check "$n" "PWA-05 test e2e hors ligne" $? ""
   fi
+  # --- Version affichée (VER-09)
+  [ -f "$d/.github/scripts/app-version.mjs" ] && cmp -s "$d/.github/scripts/app-version.mjs" "$tpl/.github/scripts/app-version.mjs"; check "$n" "VER-09 app-version.mjs identique au modèle" $? ""
+  [ -f "$d/.github/scripts/app-version.d.mts" ] && cmp -s "$d/.github/scripts/app-version.d.mts" "$tpl/.github/scripts/app-version.d.mts"; check "$n" "VER-09 app-version.d.mts identique au modèle" $? ""
+  grep -rqs 'app-version' "$d" --include='*.ts' --include='*.js' --include='*.mjs' --exclude-dir=node_modules --exclude-dir=.github --exclude-dir=coverage --exclude-dir=dist --exclude-dir=.stryker-tmp; check "$n" "VER-09 app-version.mjs importé par un script de build" $? ""
+  for w in pages.yml deploy.yml; do
+    [ -f "$d/.github/workflows/$w" ] || continue
+    grep -q 'fetch-depth: 0' "$d/.github/workflows/$w"; check "$n" "VER-09 $w : checkout en fetch-depth 0" $? ""
+  done
   [ -f "$d/.github/workflows/node-updates.yml" ]; check "$n" "UPD-01 node-updates.yml" $? ""
   [ -f "$d/.github/workflows/major-updates.yml" ]; check "$n" "UPD-04 major-updates.yml" $? ""
   c=$(grep -rn "Stryker disable" "$d" --include='*.ts' --include='*.tsx' --include='*.js' --include='*.mjs' --exclude-dir=node_modules --exclude-dir=.stryker-tmp --exclude-dir=coverage 2>/dev/null | wc -l)

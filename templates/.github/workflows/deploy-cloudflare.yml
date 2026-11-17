@@ -35,6 +35,8 @@ jobs:
           # Le SHA exact qui a passé la CI, pas juste « la HEAD actuelle de
           # main » qui a pu bouger entre-temps si des pushes s'enchaînent.
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          # Historique et tags complets : la version affichée vient du dernier tag (VER-09).
+          fetch-depth: 0
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24

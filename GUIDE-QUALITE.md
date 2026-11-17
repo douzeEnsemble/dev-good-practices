@@ -271,7 +271,7 @@ Chaque étape est vérifiable avant la suivante. Les seuils sont posés **avant*
 7. **`ci.yml`** aux noms du standard — CI-01…CI-11 ([§ 7](#7-fichiers-de-référence)).
 8. **`codeql.yml`, `audit.yml`, `dependabot.yml`, `node-updates.yml`, `major-updates.yml`** — SEC-01…SEC-04, UPD-01…04, actions épinglées dès le départ ; créer le secret `UPDATE_TOKEN`.
 9. **Versionnement** — VER-01…VER-09 : `.commitlintrc.json`, `conventional_commits.yml`, hook, `.releaserc.json`, `release.yml`, `app-version.mjs` et la version affichée dans l'interface.
-10. **Ruleset** — GIT-01…GIT-03 ([§ 7](#7-fichiers-de-référence)). Vérifier en ouvrant une PR : les 10 checks apparaissent requis.
+10. **Ruleset et réglages du dépôt** — GIT-01…GIT-03 ([§ 7](#7-fichiers-de-référence)), puis GIT-08 : un dépôt neuf n'a ni auto-merge ni rebase seul, appliquer la commande de GIT-08. Vérifier en ouvrant une PR : les 10 checks apparaissent requis et l'auto-merge est proposé ; `check-conformity.sh` ne signale aucun `KO` GIT-08.
 11. **Déploiement** — CD-01…CD-07, environnement GitHub nommé, variable `DEPLOY_URL`.
 12. **Documentation** — `CLAUDE.md` (DOC-01…DOC-03), `doc/` (DOC-04) ; `docs/` dès le premier chantier (DOC-05).
 

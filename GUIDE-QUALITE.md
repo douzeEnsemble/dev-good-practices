@@ -325,6 +325,7 @@ Principe : **une règle ou une famille de règles par PR**, CI verte entre chaqu
 
 ### Mutation testing
 - **CI longue à cause de la file d'attente, pas du calcul** : un push qui lance la CI de plusieurs dépôts en même temps (quatre dépôts à 40-60 jobs) se partage vraisemblablement le quota de jobs simultanés du compte (hypothèse non vérifiée : le plan n'était pas lisible par l'API) ; des jobs de 5 min attendaient 23 min un runner (durée réelle 25-33 min contre 12-18 min pour un dépôt seul). Mesurer la somme des durées de jobs, la durée du plus long et la concurrence atteinte avant de redécouper ; réduire le calcul total (MUT-10) plutôt que multiplier les jobs. Mesuré sur les dépôts de référence.
+- **Job « skipped » en amont qui saute le build** : un job sans `if` porte un `success()` implicite qui exige que *tous* ses ancêtres aient réussi, y compris ceux de plus haut dans la chaîne `needs`. Avec MUT-10, les modules de mutation sont *skipped* sur un push ou une PR sans module concerné, et `build` l'était aussi alors que ses `needs` directs étaient verts. Ajouter `if: ${{ !failure() && !cancelled() }}` au job final. Découvert sur le premier push après le passage à la mutation de nuit.
 - **Mutation en parallèle** : plusieurs runs saturent la machine, des mutants expirent et sont comptés tués. Mesurer un dépôt à la fois.
 - **Toute la suite par mutant** : 22 à 37 min sur une SPA, 17 à 33 min par lot sur une autre. Mesure sur 166 mutants : 342 s avec 10 fichiers, 117 s avec un seul. Ne lancer que les tests du module muté (MUT-04).
 

@@ -16,7 +16,8 @@ Bonnes pratiques de développement (qualité, CI/CD, tests, sécurité), les **m
 GUIDE-QUALITE.md      le guide : principes, règles à identifiant (CI-03, MUT-06…), recette, adoption, pièges
 templates/            fichiers à copier, tels qu'ils tournent en production
   .github/workflows/  ci, codeql, audit, deploy-cloudflare, pages, node-updates, major-updates
-  .github/scripts/    mutation-matrix.mjs (identique dans tous les dépôts)
+  .github/scripts/    mutation-matrix.mjs, mutation-select.mjs, audit-check.mjs (identiques dans tous les dépôts)
+  .github/audit-exceptions.json  exceptions d'audit datées (CI-13)
   .github/rulesets/   main.json
   .github/dependabot.yml
   vitest.config.ts · stryker.config.mjs · playwright.config.ts · .dependency-cruiser.cjs · CLAUDE.md

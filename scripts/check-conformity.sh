@@ -38,7 +38,7 @@ for d in "$@"; do
   same_as "$d/.github/workflows/conventional_commits.yml" "$tpl/.github/workflows/conventional_commits.yml"; check "$n" "VER-04 conventional_commits.yml identique au modèle" $? ""
   same_as "$d/.commitlintrc.json" "$tpl/.commitlintrc.json"; check "$n" "VER-04 .commitlintrc.json identique au modèle" $? ""
   ! grep -rqE '@semantic-release/(git|changelog)' "$d/.releaserc.json" "$d/.github/workflows/release.yml" 2>/dev/null; check "$n" "VER-05 aucun commit de release sur main" $? ""
-  grep -q 'commit-message' "$d/.github/dependabot.yml" 2>/dev/null; check "$n" "VER-06 dependabot : commit-message conventionnel" $? ""
+  [ "$(grep -c 'package-ecosystem' "$d/.github/dependabot.yml" 2>/dev/null)" -eq "$(grep -c 'commit-message' "$d/.github/dependabot.yml" 2>/dev/null)" ] && grep -q 'commit-message' "$d/.github/dependabot.yml" 2>/dev/null; check "$n" "VER-06 dependabot : commit-message sur chaque entrée" $? "(une entrée package-ecosystem sans commit-message)"
   tot=$(git -C "$d" log -100 --pretty=%s 2>/dev/null | wc -l)
   conv=$(git -C "$d" log -100 --pretty=%s 2>/dev/null | grep -Ec '^[a-z]+(\([^)]+\))?!?: ')
   echo "--  $n GIT-07 $conv/$tot commits conventionnels (information)"

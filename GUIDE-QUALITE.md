@@ -1,6 +1,6 @@
 # Guide qualité
 
-> Version **3.3** · 16 novembre 2026 · tiré de projets web (Worker + Durable Object, SPA/PWA, JS sans build, site statique), complété par les pratiques d'un backend PHP/Symfony.
+> Version **3.4** · 16 novembre 2026 · tiré de projets web (Worker + Durable Object, SPA/PWA, JS sans build, site statique), complété par les pratiques d'un backend PHP/Symfony.
 > Référence vivante : à faire évoluer ici, puis à rejouer sur les projets (voir [§ 9 Faire évoluer le guide](#9-faire-évoluer-le-guide)).
 
 Ce guide sert à deux choses :
@@ -244,7 +244,7 @@ Le numéro de version n'est jamais choisi par une personne : il se **déduit des
 | VER-03 | `release.yml` ([modèle](templates/.github/workflows/release.yml)) : à chaque push sur `main`, `semantic-release` calcule la version, crée le tag, puis la release GitHub (`gh release create --generate-notes`). Pas de condition sur la CI : le ruleset (GIT-01) ne laisse arriver sur `main` qu'un commit dont les checks sont verts. `concurrency` sans `cancel-in-progress`, `fetch-depth: 0` (il lit l'historique depuis le dernier tag). Famille PHP conteneurisée : la release est une *prerelease* qu'on promeut en la publiant (PHP-13). |
 | VER-04 | **Les messages sont contrôlés avant la fusion** : `conventional_commits.yml` ([modèle](templates/.github/workflows/conventional_commits.yml), identique dans toutes les familles) avec les checks requis « Titre de PR conventionnel » et « Commits conventionnels » (règles : [`.commitlintrc.json`](templates/.commitlintrc.json)), plus le hook local [`.githooks/commit-msg`](templates/.githooks/commit-msg) (`git config core.hooksPath .githooks`, ou `make hooks` en PHP). Raison : la fusion est un *rebase* (GIT-02), donc chaque commit de la PR devient un commit de `main` et se lit tel quel : un seul message non conforme fausse le numéro. |
 | VER-05 | **Aucun commit de release sur `main`** : pas de plugin `@semantic-release/git` ni `@semantic-release/changelog`, pas de `[skip ci]`. Raison : le ruleset interdit les poussées directes (GIT-02), et un commit de release relancerait la CI en boucle. |
-| VER-06 | **Dependabot parle conventionnel** : `commit-message` avec `prefix: build` (dépendances de production), `prefix-development: chore`, `include: scope` pour npm/Composer, `prefix: ci` pour les actions. Raison : une montée de dépendance de production donne `build(deps)` → version correctif ; une montée d'outil de développement ne publie rien. Vérifier : `commit-message` dans `dependabot.yml`. |
+| VER-06 | **Dependabot parle conventionnel** : `commit-message` avec `prefix: build` (dépendances de production), `prefix-development: chore`, `include: scope` pour npm/Composer, `prefix: ci` pour les actions. Raison : une montée de dépendance de production donne `build(deps)` → version correctif ; une montée d'outil de développement ne publie rien. **Chaque** entrée `npm`, `composer` et `github-actions` porte son propre `commit-message` : Dependabot ne l'hérite pas d'une entrée à l'autre, et une entrée sans lui garde « Bump … », que VER-04 refuse. Vérifier : autant de `commit-message` que d'entrées `package-ecosystem` dans `dependabot.yml`. |
 | VER-07 | Le jeton qui crée la release doit être **adapté à ce qui doit la suivre** : `GITHUB_TOKEN` suffit si rien ne réagit à la release ; si un workflow doit démarrer sur la release (déploiement de PHP-13, `on: release`), utiliser le jeton dédié `RELEASE_TOKEN` (UPD-02), car les événements créés avec `GITHUB_TOKEN` ne déclenchent aucun workflow. |
 | VER-08 | Les tags de déploiement de CD-04 (`deploy-N`, `worker-deploy-*`) restent **distincts** des tags de version `v*` : les premiers numérotent des déploiements, les seconds des versions. `tagFormat` de semantic-release ne reconnaît que `v*`. |
 
@@ -318,6 +318,7 @@ Principe : **une règle ou une famille de règles par PR**, CI verte entre chaqu
 - **Architecture exécutable muette** : avec TypeScript 7, `depcruise` sans `@swc/core` annonce « 0 modules cruised » et réussit. Vérifier que le nombre de modules analysés n'est pas nul (ARCH-02). Découvert au rejeu sur une application.
 - **Renommer un check requis** : toutes les PR attendent indéfiniment ; appliquer le ruleset avant de fusionner (GIT-03).
 - **Serveur de dev invisible en CI** : sans `--host 127.0.0.1`, Playwright attend en vain (CI-12).
+- **Dependabot sans préfixe sur une entrée** : `commit-message` se règle par entrée `package-ecosystem`, sans héritage. Une entrée oubliée (typiquement `npm` à la racine, quand `/worker` et `github-actions` l'avaient) ouvre des PR « Bump … » qui échouent à « Titre de PR conventionnel » et « Commits conventionnels » (VER-04). Corriger l'entrée, puis `@dependabot rebase` sur les PR ouvertes (le titre est régénéré). Découvert sur trois dépôts dont seules les entrées secondaires étaient configurées (VER-06).
 - **PR de bot sans CI** : une PR ouverte par un workflow avec `GITHUB_TOKEN` ne déclenche aucun workflow, donc les checks requis n'arrivent jamais et la PR reste bloquée. Jeton dédié (UPD-02). Un projet PHP l'évite avec un secret propre à sa PR de déploiement.
 - **Exemple de clé dans la doc** : un README de backend PHP contenait un exemple de clé d'API qui ressemblait à une vraie. Toujours un placeholder (`<votre-clé>`) ; révoquer si c'était une vraie.
 
@@ -391,7 +392,7 @@ Ce dépôt ne contient **aucun état par projet** : chaque projet suit son propr
 | UPD-01/04 | `node-updates.yml` et `major-updates.yml` présents |
 | DOC-04 | `doc/` présent et cité dans `CLAUDE.md` |
 | PWA-03/05/07 | si `vite-plugin-pwa` est utilisé : `navigateFallbackDenylist` (information si absent), test e2e hors ligne, dépendance de développement |
-| VER-02/03/04/06 | `.releaserc.json` identique au modèle (hors `--prerelease` en PHP), `release.yml`, `conventional_commits.yml` identique au modèle, `.commitlintrc.json` identique, `commit-message` dans `dependabot.yml`, aucun plugin `git`/`changelog` (VER-05) |
+| VER-02/03/04/06 | `.releaserc.json` identique au modèle (hors `--prerelease` en PHP), `release.yml`, `conventional_commits.yml` identique au modèle, `.commitlintrc.json` identique, un `commit-message` par entrée de `dependabot.yml`, aucun plugin `git`/`changelog` (VER-05) |
 | PHP-01…08, GIT-07, UPD-01 | si `composer.json` sans `package.json` : workflows PHP présents, `make help`, `tools/`, niveau PHPStan, Deptrac, MSI 100, commitlint, montée de PHP |
 | SEC-01 | toute action externe référencée par un SHA de 40 caractères (les deux familles) |
 | informatif | nombre de `Stryker disable` (MUT-06) ; part de commits conventionnels (GIT-07) |
@@ -421,3 +422,4 @@ Ce dépôt ne contient **aucun état par projet** : chaque projet suit son propr
 | 3.1 | 2026-11-16 | Mineure, tirée du rejeu sur les applications : `dependency-cruiser` exige `@swc/core` avec TypeScript 7 (sinon 0 module analysé, ARCH-02 et piège du § 6) ; le modèle `.dependency-cruiser.cjs` couvre `src/views/` et documente l'exception des helpers de test. |
 | 3.2 | 2026-11-16 | Mineure, tirée du rejeu PWA : PWA-05 précise que le test hors ligne tourne sur le build de production et exige `context.setOffline` (un mock du même nom ne suffisait pas) ; `check-conformity.sh` durci en conséquence. |
 | 3.3 | 2026-11-16 | Mineure, tirée du rejeu sur un projet de scripts classiques : ARCH-04 (pas de modules ES, pas de graphe d'import : écart déclaré dans `CLAUDE.md`, ordre des balises `<script>` documenté) ; `check-conformity.sh` accepte l'écart déclaré. |
+| 3.4 | 2026-11-17 | Mineure, tirée d'un incident : VER-06 précise que `commit-message` se pose sur **chaque** entrée de `dependabot.yml` (sans héritage) ; nouveau piège au § 6 ; `check-conformity.sh` compare le nombre de `commit-message` au nombre d'entrées. |

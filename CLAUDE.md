@@ -18,7 +18,7 @@ Dépôt de documentation et de modèles : bonnes pratiques de développement tir
 - **Une règle n'entre que si elle est vérifiable** (commande, fichier ou check) **et que sa raison est écrite.** Un nouveau piège s'ajoute au § 6 avec l'incident qui l'a révélé.
 - **Toute évolution** : incrémenter la version du guide (mineure : règle ajoutée ou précisée ; majeure : elle oblige à toucher le ruleset ou les noms de checks), ajouter une ligne au journal (§ 9), mettre à jour le suivi de conformité (§ 8), puis rejouer sur les projets à raison d'une PR par dépôt.
 - **Nouvelle vérification automatisable** : ajouter la ligne correspondante à `scripts/check-conformity.sh` et la relancer sur les dépôts suivis.
-- `templates/.github/scripts/mutation-matrix.mjs` doit rester **identique** dans tous les dépôts à matrice ; `check-conformity.sh` compare son empreinte. Toute modification ici se rejoue partout.
+- `templates/.github/scripts/mutation-matrix.mjs` doit rester **identique** dans tous les dépôts à matrice ; `check-conformity.sh` compare son empreinte. Même règle pour `audit-check.mjs` (tous les dépôts npm). Toute modification ici se rejoue partout.
 - Les actions des workflows sont épinglées par SHA (`@<sha> # vN`) : ne jamais les remplacer par un tag. Pour en ajouter une, retrouver le SHA avec `gh api repos/<action>/git/ref/tags/<tag>` (si l'objet est de type `tag`, suivre `git/tags/<sha>`).
 
 ## Vérifier avant de livrer une modification
@@ -39,4 +39,4 @@ Aucun `KO` attendu, sauf sur les règles de la version courante tant qu'elles ne
 
 ## État
 
-Version 3.7 du guide (17 novembre 2026). Remote : `douzeEnsemble/dev-good-practices`. Premier commit fait à la demande du propriétaire ; ne pousser qu'à sa demande explicite.
+Version 3.8 du guide (17 novembre 2026). Remote : `douzeEnsemble/dev-good-practices`. Premier commit fait à la demande du propriétaire ; ne pousser qu'à sa demande explicite.

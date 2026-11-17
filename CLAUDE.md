@@ -39,4 +39,4 @@ Aucun `KO` attendu, sauf sur les règles de la version courante tant qu'elles ne
 
 ## État
 
-Version 3.3 du guide (16 novembre 2026). Remote : `douzeEnsemble/dev-good-practices`. Premier commit fait à la demande du propriétaire ; ne pousser qu'à sa demande explicite.
+Version 3.4 du guide (17 novembre 2026). Remote : `douzeEnsemble/dev-good-practices`. Premier commit fait à la demande du propriétaire ; ne pousser qu'à sa demande explicite.

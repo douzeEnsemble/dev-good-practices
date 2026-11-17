@@ -1,6 +1,6 @@
 # Guide qualité
 
-> Version **3.4** · 16 novembre 2026 · tiré de projets web (Worker + Durable Object, SPA/PWA, JS sans build, site statique), complété par les pratiques d'un backend PHP/Symfony.
+> Version **3.5** · 17 novembre 2026 · tiré de projets web (Worker + Durable Object, SPA/PWA, JS sans build, site statique), complété par les pratiques d'un backend PHP/Symfony.
 > Référence vivante : à faire évoluer ici, puis à rejouer sur les projets (voir [§ 9 Faire évoluer le guide](#9-faire-évoluer-le-guide)).
 
 Ce guide sert à deux choses :
@@ -86,6 +86,7 @@ Ce qui est **commun à toutes les familles** : noms de jobs, ruleset, audit, Cod
 | MUT-07 | Les tests vérifient **quelle** erreur est levée (`rejects.toBe(err)`, message exact) et, côté interface, la **structure exacte** (`outerHTML`, `getAttributeNames()`, `defaultPrevented`). |
 | MUT-08 | `.github/scripts/mutation-matrix.mjs` : **même fichier dans tous les dépôts** (voir [§ 7](#7-fichiers-de-référence)). |
 | MUT-09 | Trois jobs CI : `plan` → `module` (matrice, `fail-fast: false`, artefact `mutation-report-<nom>`) → **synthèse « Mutation testing (logique pure) »**, seul check requis. Le nom de la synthèse ne change jamais, même si le périmètre s'élargit. |
+| MUT-10 | **La mutation complète tourne la nuit, pas à chaque PR.** `ci.yml` a un déclencheur `schedule` (une fois par nuit) et `workflow_dispatch` ; [`mutation-select.mjs`](templates/.github/scripts/mutation-select.mjs) filtre la matrice de MUT-09. *PR* : seuls les modules dont le fichier source ou de test est dans le diff, et **tous** si la PR touche autre chose (config, workflow, dépendances, fichier de `src/` non muté). *Nuit ou lancement manuel* : tous. *Push sur `main`* : aucun. Le check « Mutation testing (logique pure) » reste requis : il passe quand aucun module n'est concerné et échoue si la planification échoue. Raison : la mutation fait l'essentiel du calcul de la CI et les runners gratuits sont partagés entre dépôts ([§ 6](#6-pièges-connus)) ; relancer des dizaines de modules à chaque PR et à chaque push fait attendre tout le monde. **Limite assumée** : une PR qui modifie le module A peut tuer ou laisser survivre des mutants du module B qui l'importe ; seul le contrôle de nuit le détecte, le lendemain (GIT-04). Vérifier : `mutation-select.mjs` identique au modèle, `schedule` dans `ci.yml`. |
 
 ### 3.5 CI (`CI-*`)
 
@@ -130,7 +131,7 @@ Ce qui est **commun à toutes les familles** : noms de jobs, ruleset, audit, Cod
 | GIT-01 | `.github/rulesets/main.json` versionné dans chaque dépôt, appliqué avec `apply-rulesets.sh`. Tous les checks de CI-01…CI-09 requis, branche à jour avant fusion. |
 | GIT-02 | PR obligatoire, conversations résolues, 0 approbation exigée, historique linéaire, pas de force-push ni de suppression, fusion par **rebase** uniquement, aucun contournement. |
 | GIT-03 | **Ordre** : si une PR renomme un check requis, appliquer d'abord le ruleset (la PR produit déjà le nouveau nom) ; sinon fusionner puis appliquer. Après un changement de checks, `@dependabot rebase` sur les PR Dependabot ouvertes. |
-| GIT-04 | Une CI rouge se corrige et se repousse ; un check rouge sur `main` (nouvel avis d'audit) se corrige dans la PR suivante, sans traîner. |
+| GIT-04 | Une CI rouge se corrige et se repousse ; un check rouge sur `main` (nouvel avis d'audit) se corrige dans la PR suivante, sans traîner. Le contrôle de mutation de nuit (MUT-10) suit la même règle : s'il échoue, le module en cause se corrige dans la PR suivante. |
 | GIT-05 | *Choix du propriétaire, à adapter :* messages de commit et commentaires en français. Les préfixes suivent GIT-07. |
 | GIT-06 | Avec un assistant : il ouvre les PR et surveille la CI ; **le propriétaire fusionne** et déclenche lui-même les déploiements. |
 | GIT-07 | Commits **atomiques**, au format conventionnel `type(portée): sujet` (`feat`, `fix`, `refactor`, `test`, `ci`, `build(deps)`, `docs`, `chore`), à l'impératif, qui disent le *pourquoi*. Une refonte imposée par une contrainte de qualité (longueur, complexité) est un commit `refactor` à part. Les commits des bots suivent le même format (`build(deps): bump …`). Raison : un historique lisible et filtrable, qui alimente le versionnement automatique ([§ 3.14](#314-versionnement-ver)). Appliqué par les checks « Titre de PR conventionnel » et « Commits conventionnels » (VER-04). Vérifier : `check-conformity.sh` affiche la part de commits conformes sur les 100 derniers. |
@@ -323,6 +324,7 @@ Principe : **une règle ou une famille de règles par PR**, CI verte entre chaqu
 - **Exemple de clé dans la doc** : un README de backend PHP contenait un exemple de clé d'API qui ressemblait à une vraie. Toujours un placeholder (`<votre-clé>`) ; révoquer si c'était une vraie.
 
 ### Mutation testing
+- **CI longue à cause de la file d'attente, pas du calcul** : un push qui lance la CI de plusieurs dépôts en même temps (quatre dépôts à 40-60 jobs) se partage vraisemblablement le quota de jobs simultanés du compte (hypothèse non vérifiée : le plan n'était pas lisible par l'API) ; des jobs de 5 min attendaient 23 min un runner (durée réelle 25-33 min contre 12-18 min pour un dépôt seul). Mesurer la somme des durées de jobs, la durée du plus long et la concurrence atteinte avant de redécouper ; réduire le calcul total (MUT-10) plutôt que multiplier les jobs. Mesuré sur les dépôts de référence.
 - **Mutation en parallèle** : plusieurs runs saturent la machine, des mutants expirent et sont comptés tués. Mesurer un dépôt à la fois.
 - **Toute la suite par mutant** : 22 à 37 min sur une SPA, 17 à 33 min par lot sur une autre. Mesure sur 166 mutants : 342 s avec 10 fichiers, 117 s avec un seul. Ne lancer que les tests du module muté (MUT-04).
 
@@ -349,6 +351,7 @@ Les modèles sont de **vrais fichiers** dans ce dépôt, à copier puis adapter.
 | COV-01…05 | [`templates/vitest.config.ts`](templates/vitest.config.ts) | listes `include`/`exclude`, exclusions commentées |
 | MUT-01…07 | [`templates/stryker.config.mjs`](templates/stryker.config.mjs) | table `targets` (modules, plages de lignes) |
 | MUT-08 | [`templates/.github/scripts/mutation-matrix.mjs`](templates/.github/scripts/mutation-matrix.mjs) | **rien** : identique dans tous les dépôts |
+| MUT-10 | [`templates/.github/scripts/mutation-select.mjs`](templates/.github/scripts/mutation-select.mjs) | **rien** : identique dans tous les dépôts (lit `targets` de `stryker.config.mjs`) |
 | CI-01…11, MUT-09 | [`templates/.github/workflows/ci.yml`](templates/.github/workflows/ci.yml) | retirer les jobs sans objet ; chemin de l'aperçu de build (`dist/client`) ; `worker-tests` si Worker de synchro |
 | CI-12 | [`templates/playwright.config.ts`](templates/playwright.config.ts) | `testDir`, projets |
 | SEC-03 | [`templates/.github/workflows/codeql.yml`](templates/.github/workflows/codeql.yml) | langages |
@@ -388,6 +391,7 @@ Ce dépôt ne contient **aucun état par projet** : chaque projet suit son propr
 | SEC-02…04, GIT-01 | présence de `dependabot.yml`, `codeql.yml`, `audit.yml`, `rulesets/main.json` |
 | COV-01, MUT-02 | seuils à 100 dans les configs |
 | MUT-08 | empreinte de `mutation-matrix.mjs` identique au modèle |
+| MUT-10 | `mutation-select.mjs` identique au modèle et déclencheur `schedule` dans `ci.yml` (famille à matrice de mutation) |
 | ARCH-01/02 | `.dependency-cruiser.*` présent et `depcruise` dans `package.json` |
 | UPD-01/04 | `node-updates.yml` et `major-updates.yml` présents |
 | DOC-04 | `doc/` présent et cité dans `CLAUDE.md` |
@@ -423,3 +427,4 @@ Ce dépôt ne contient **aucun état par projet** : chaque projet suit son propr
 | 3.2 | 2026-11-16 | Mineure, tirée du rejeu PWA : PWA-05 précise que le test hors ligne tourne sur le build de production et exige `context.setOffline` (un mock du même nom ne suffisait pas) ; `check-conformity.sh` durci en conséquence. |
 | 3.3 | 2026-11-16 | Mineure, tirée du rejeu sur un projet de scripts classiques : ARCH-04 (pas de modules ES, pas de graphe d'import : écart déclaré dans `CLAUDE.md`, ordre des balises `<script>` documenté) ; `check-conformity.sh` accepte l'écart déclaré. |
 | 3.4 | 2026-11-17 | Mineure, tirée d'un incident : VER-06 précise que `commit-message` se pose sur **chaque** entrée de `dependabot.yml` (sans héritage) ; nouveau piège au § 6 ; `check-conformity.sh` compare le nombre de `commit-message` au nombre d'entrées. |
+| 3.5 | 2026-11-17 | Mineure, tirée de la mesure des temps de CI : MUT-10 (mutation complète la nuit, modules touchés sur les PR, aucune sur `main`) avec `mutation-select.mjs` et `ci.yml` à jour ; piège « CI longue à cause de la file d'attente » (§ 6). Aucun nom de check modifié. |

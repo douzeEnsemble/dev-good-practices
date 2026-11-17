@@ -69,6 +69,7 @@ for d in "$@"; do
   if [ -f "$d/.github/scripts/mutation-matrix.mjs" ]; then
     [ "$(md5sum "$d/.github/scripts/mutation-matrix.mjs" | cut -d' ' -f1)" = "$ref" ]
     check "$n" "MUT-08 mutation-matrix.mjs identique au modèle" $? ""
+    [ -f "$d/.github/scripts/mutation-select.mjs" ] && cmp -s "$d/.github/scripts/mutation-select.mjs" "$tpl/.github/scripts/mutation-select.mjs" && grep -q 'schedule:' "$d/.github/workflows/ci.yml" 2>/dev/null; check "$n" "MUT-10 mutation de nuit (mutation-select.mjs identique, schedule dans ci.yml)" $? ""
   else
     echo "--  $n MUT-08 pas de matrice (un seul job ?)"
   fi

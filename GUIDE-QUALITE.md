@@ -1,6 +1,6 @@
 # Guide qualité
 
-> Version **3.5** · 17 novembre 2026 · tiré de projets web (Worker + Durable Object, SPA/PWA, JS sans build, site statique), complété par les pratiques d'un backend PHP/Symfony.
+> Version **3.6** · 17 novembre 2026 · tiré de projets web (Worker + Durable Object, SPA/PWA, JS sans build, site statique), complété par les pratiques d'un backend PHP/Symfony.
 > Référence vivante : à faire évoluer ici, puis à rejouer sur les projets (voir [§ 9 Faire évoluer le guide](#9-faire-évoluer-le-guide)).
 
 Ce guide sert à deux choses :
@@ -429,3 +429,4 @@ Ce dépôt ne contient **aucun état par projet** : chaque projet suit son propr
 | 3.3 | 2026-11-16 | Mineure, tirée du rejeu sur un projet de scripts classiques : ARCH-04 (pas de modules ES, pas de graphe d'import : écart déclaré dans `CLAUDE.md`, ordre des balises `<script>` documenté) ; `check-conformity.sh` accepte l'écart déclaré. |
 | 3.4 | 2026-11-17 | Mineure, tirée d'un incident : VER-06 précise que `commit-message` se pose sur **chaque** entrée de `dependabot.yml` (sans héritage) ; nouveau piège au § 6 ; `check-conformity.sh` compare le nombre de `commit-message` au nombre d'entrées. |
 | 3.5 | 2026-11-17 | Mineure, tirée de la mesure des temps de CI : MUT-10 (mutation complète la nuit, modules touchés sur les PR, aucune sur `main`) avec `mutation-select.mjs` et `ci.yml` à jour ; piège « CI longue à cause de la file d'attente » (§ 6). Aucun nom de check modifié. |
+| 3.6 | 2026-11-17 | Mineure, tirée du premier push après MUT-10 : le modèle `ci.yml` ajoute `if: ${{ !failure() && !cancelled() }}` au job `build` (sinon sauté quand les modules de mutation sont *skipped*) et piège correspondant au § 6 ; MUT-10 précise que l'objectif de 10 minutes ne vaut pas pour le contrôle de nuit. Aucun nom de check modifié. |

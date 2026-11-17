@@ -32,6 +32,11 @@ for d in "$@"; do
   bad=$(unpinned "$d/.github")
   [ "$bad" -eq 0 ]; check "$n" "SEC-01 actions épinglées par SHA" $? "($bad ligne(s))"
   { [ -d "$d/doc" ] && grep -q 'doc/' "$d/CLAUDE.md" 2>/dev/null; }; check "$n" "DOC-04 doc/ présent et cité dans CLAUDE.md" $? ""
+  # --- Réglages du dépôt (GIT-08), lus sur GitHub
+  slug=$(git -C "$d" remote get-url origin 2>/dev/null | sed -E 's#^(git@github.com:|https://github.com/)##; s#\.git$##')
+  if command -v gh >/dev/null 2>&1 && [ -n "$slug" ] && st=$(gh api "repos/$slug" -q '"\(.allow_auto_merge) \(.allow_rebase_merge) \(.allow_squash_merge) \(.allow_merge_commit) \(.delete_branch_on_merge)"' 2>/dev/null); then
+    [ "$st" = "true true false false true" ]; check "$n" "GIT-08 auto-merge, rebase seul, suppression de branche" $? "(auto rebase squash merge delete = $st)"
+  else echo "--  $n GIT-08 réglages non vérifiés (gh ou réseau indisponible)"; fi
   # --- Versionnement (VER-02…06)
   same_as "$d/.releaserc.json" "$tpl/.releaserc.json"; check "$n" "VER-02 .releaserc.json identique au modèle" $? ""
   [ -f "$d/.github/workflows/release.yml" ]; check "$n" "VER-03 release.yml présent" $? ""

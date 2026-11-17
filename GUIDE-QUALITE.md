@@ -1,6 +1,6 @@
 # Guide qualité
 
-> Version **3.10** · 17 novembre 2026 · tiré de projets web (Worker + Durable Object, SPA/PWA, JS sans build, site statique), complété par les pratiques d'un backend PHP/Symfony.
+> Version **3.11** · 17 novembre 2026 · tiré de projets web (Worker + Durable Object, SPA/PWA, JS sans build, site statique), complété par les pratiques d'un backend PHP/Symfony.
 > Référence vivante : à faire évoluer ici, puis à rejouer sur les projets (voir [§ 9 Faire évoluer le guide](#9-faire-évoluer-le-guide)).
 
 Ce guide sert à deux choses :
@@ -136,6 +136,7 @@ Ce qui est **commun à toutes les familles** : noms de jobs, ruleset, audit, Cod
 | GIT-05 | *Choix du propriétaire, à adapter :* messages de commit et commentaires en français. Les préfixes suivent GIT-07. |
 | GIT-06 | Avec un assistant : il ouvre les PR et surveille la CI ; **le propriétaire fusionne** et déclenche lui-même les déploiements. |
 | GIT-07 | Commits **atomiques**, au format conventionnel `type(portée): sujet` (`feat`, `fix`, `refactor`, `test`, `ci`, `build(deps)`, `docs`, `chore`), à l'impératif, qui disent le *pourquoi*. Une refonte imposée par une contrainte de qualité (longueur, complexité) est un commit `refactor` à part. Les commits des bots suivent le même format (`build(deps): bump …`). Raison : un historique lisible et filtrable, qui alimente le versionnement automatique ([§ 3.14](#314-versionnement-ver)). Appliqué par les checks « Titre de PR conventionnel » et « Commits conventionnels » (VER-04). Vérifier : `check-conformity.sh` affiche la part de commits conformes sur les 100 derniers. |
+| GIT-08 | **Réglages du dépôt** (hors ruleset, donc non versionnés) : *Allow auto-merge* activé, fusion par **rebase** seul (squash et commit de fusion désactivés), suppression automatique de la branche après fusion. Appliqués une fois par dépôt : `gh api -X PATCH repos/<propriétaire>/<dépôt> -F allow_auto_merge=true -F allow_squash_merge=false -F allow_merge_commit=false -F allow_rebase_merge=true -F delete_branch_on_merge=true`. Raison : sans auto-merge, la PR attend qu'on revienne la fusionner une fois la CI verte (GIT-06 laisse la fusion au propriétaire, qui la programme) ; squash ou commit de fusion contredisent GIT-02 et fausseraient le numéro de version (VER-04, un commit = un message lu par semantic-release) ; les branches fusionnées s'accumulent sinon. Constaté : trois dépôts sur huit avaient l'auto-merge désactivé, deux acceptaient le squash. Vérifier : `check-conformity.sh` interroge `gh api repos/<dépôt>` (ligne `--` si `gh` ou le réseau manque). |
 
 ### 3.8 Déploiement (`CD-*`)
 
@@ -394,6 +395,7 @@ Ce dépôt ne contient **aucun état par projet** : chaque projet suit son propr
 | Règle | Vérifié par `check-conformity.sh` |
 |---|---|
 | SEC-01 | aucune action référencée par tag |
+| GIT-08 | réglages du dépôt lus par `gh api` : auto-merge, rebase seul, suppression de branche (nécessite `gh` authentifié) |
 | SEC-02…04, GIT-01 | présence de `dependabot.yml`, `codeql.yml`, `audit.yml`, `rulesets/main.json` |
 | COV-01, MUT-02 | seuils à 100 dans les configs |
 | MUT-08 | empreinte de `mutation-matrix.mjs` identique au modèle |
@@ -441,3 +443,4 @@ Ce dépôt ne contient **aucun état par projet** : chaque projet suit son propr
 | 3.8 | 2026-11-17 | Mineure, tirée d'un avis d'audit `high` sans correctif publié (`picomatch`) qui a rougi l'audit de tous les dépôts : CI-13 (`audit-check.mjs`, exceptions datées pour les dépendances de développement, seuil inchangé), `ci.yml` et `audit.yml` l'appellent, piège au § 6, `check-conformity.sh` vérifie l'empreinte du script. Aucun nom de check modifié. |
 | 3.9 | 2026-11-17 | Mineure : VER-09, chaque site affiche sa version (dernier tag `v*`, injecté à la construction par `app-version.mjs`, `fetch-depth: 0` dans les workflows de build) ; `check-conformity.sh` vérifie le script et le checkout. Aucun nom de check modifié. |
 | 3.10 | 2026-11-17 | Mineure, tirée d'un incident : un projet à CI courte a déployé avant la création du tag et affichait la version précédente. VER-09 impose d'attendre le run « Release » du commit (`wait-release.sh`, `actions: read`) avant de construire ; modèles `pages.yml` et `deploy-cloudflare.yml` à jour, `check-conformity.sh` vérifie le script et l'étape. Aucun nom de check modifié. |
+| 3.11 | 2026-11-17 | Mineure, tirée du constat de trois dépôts sans auto-merge et deux acceptant le squash : GIT-08 (auto-merge, rebase seul, suppression de branche), commande d'application, vérification par `gh api` dans `check-conformity.sh`. Aucun nom de check modifié. |

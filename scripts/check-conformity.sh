@@ -71,7 +71,8 @@ for d in "$@"; do
     check "$n" "MUT-08 mutation-matrix.mjs identique au modèle" $? ""
     [ -f "$d/.github/scripts/mutation-select.mjs" ] && cmp -s "$d/.github/scripts/mutation-select.mjs" "$tpl/.github/scripts/mutation-select.mjs" && grep -q 'schedule:' "$d/.github/workflows/ci.yml" 2>/dev/null; check "$n" "MUT-10 mutation de nuit (mutation-select.mjs identique, schedule dans ci.yml)" $? ""
   else
-    echo "--  $n MUT-08 pas de matrice (un seul job ?)"
+    echo "--  $n MUT-08 pas de matrice (un seul job)"
+    grep -q 'schedule:' "$d/.github/workflows/ci.yml" 2>/dev/null; check "$n" "MUT-10 mutation de nuit, job unique (schedule dans ci.yml)" $? ""
   fi
   s=$(ls "$d"/stryker.config.* 2>/dev/null | head -1)
   if [ -n "$s" ]; then grep -Eq '"?break"?: *100' "$s"; check "$n" "MUT-02 seuil break 100" $? ""

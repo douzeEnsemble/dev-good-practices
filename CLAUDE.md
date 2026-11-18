@@ -6,7 +6,7 @@ Dépôt de documentation et de modèles : bonnes pratiques de développement tir
 
 ## Contenu
 
-- `GUIDE-QUALITE.md` : le guide. Principes (§ 1), choix selon le type de projet (§ 2), le standard = les règles à identifiant stable (`CI-03`, `MUT-06`…) (§ 3), recette nouveau projet (§ 4), adoption sur un projet existant (§ 5), pièges (§ 6), tableau modèles (§ 7), suivi de conformité (§ 8), règles d'évolution et journal des versions (§ 9).
+- `GUIDE-QUALITE.md` : le guide. Principes (§ 1), choix selon le type de projet (§ 2), le standard = les règles à identifiant stable (`CI-03`, `MUT-06`, `A11Y-02`…) (§ 3), recette nouveau projet (§ 4), adoption sur un projet existant (§ 5), pièges (§ 6), tableau modèles (§ 7), suivi de conformité (§ 8), règles d'évolution et journal des versions (§ 9).
 - `templates/` : fichiers à copier tels quels dans un projet (workflows, ruleset, `mutation-matrix.mjs`, configs Vitest/Stryker/Playwright, `CLAUDE.md` type). Ils tournent en production dans les dépôts de référence.
 - `examples/` : fichiers réels remplis (`worker-do/`, `js-sans-build/`) et un exemple générique de test d'interface. Ce sont des **instantanés**, non tenus à jour.
 - `scripts/apply-rulesets.sh propriétaire/dépôt …` : applique `.github/rulesets/main.json` d'un dépôt à son ruleset GitHub (agit sur GitHub : ne le lancer qu'à la demande). `scripts/check-conformity.sh chemin/dépôt …` : vérifie des dépôts clonés contre le guide (lecture seule ; sortie `ok`/`KO`, code 1 si un KO).
@@ -39,4 +39,4 @@ Aucun `KO` attendu, sauf sur les règles de la version courante tant qu'elles ne
 
 ## État
 
-Version 3.11 du guide (17 novembre 2026). Remote : `douzeEnsemble/dev-good-practices`. Premier commit fait à la demande du propriétaire ; ne pousser qu'à sa demande explicite.
+Version 3.12 du guide (18 novembre 2026). Remote : `douzeEnsemble/dev-good-practices`. Premier commit fait à la demande du propriétaire ; ne pousser qu'à sa demande explicite.

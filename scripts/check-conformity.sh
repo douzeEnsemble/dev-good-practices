@@ -96,6 +96,14 @@ for d in "$@"; do
     grep -rq 'navigateFallbackDenylist' "$d"/vite.config.* 2>/dev/null && echo "ok  $n PWA-03 navigateFallbackDenylist" || echo "--  $n PWA-03 pas de denylist (API sur une autre origine ?)"
     grep -rlq 'context\.setOffline' "$d/e2e" "$d/tests" 2>/dev/null; check "$n" "PWA-05 test e2e hors ligne" $? ""
   fi
+  # --- Accessibilité (A11Y-02) : si Playwright est utilisé
+  if grep -q '"@playwright/test"' "$d/package.json" 2>/dev/null; then
+    if declared 'A11Y-02'; then echo "--  $n A11Y-02 écart déclaré"
+    else
+      grep -q '"@axe-core/playwright"' "$d/package.json"; check "$n" "A11Y-02 @axe-core/playwright en dépendance" $? ""
+      grep -rlq '@axe-core/playwright' "$d/e2e" "$d/tests" "$d/test" 2>/dev/null; check "$n" "A11Y-02 un test e2e appelle axe" $? ""
+    fi
+  fi
   # --- Version affichée (VER-09)
   [ -f "$d/.github/scripts/app-version.mjs" ] && cmp -s "$d/.github/scripts/app-version.mjs" "$tpl/.github/scripts/app-version.mjs"; check "$n" "VER-09 app-version.mjs identique au modèle" $? ""
   [ -f "$d/.github/scripts/app-version.d.mts" ] && cmp -s "$d/.github/scripts/app-version.d.mts" "$tpl/.github/scripts/app-version.d.mts"; check "$n" "VER-09 app-version.d.mts identique au modèle" $? ""

@@ -1,6 +1,6 @@
 # Guide qualité
 
-> Version **3.13** · 18 novembre 2026 · tiré de projets web (Worker + Durable Object, SPA/PWA, JS sans build, site statique), complété par les pratiques d'un backend PHP/Symfony.
+> Version **3.14** · 18 novembre 2026 · tiré de projets web (Worker + Durable Object, SPA/PWA, JS sans build, site statique), complété par les pratiques d'un backend PHP/Symfony.
 > Référence vivante : à faire évoluer ici, puis à rejouer sur les projets (voir [§ 9 Faire évoluer le guide](#9-faire-évoluer-le-guide)).
 
 Ce guide sert à deux choses :
@@ -36,7 +36,7 @@ Règle d'or : **on ne baisse jamais un seuil pour avancer**. On étend le périm
 | Logique pure | `worker/reducer.ts`, `shared/`, `src/lib/` | `src/lib/`, hooks | modules `js/*.js` | `js/`, `scripts/` |
 | Lint / types | oxlint · `tsc` ×2 (worker, client) | oxlint · `tsc -b` | oxlint · `tsc` + `checkJs` | ESLint + Stylelint + html-validate |
 | Couverture / mutation | 100 % · matrice | 100 % · matrice | 100 % · matrice, gros fichiers en plages | 100 % · 1 job |
-| E2E Playwright | oui, contre `vite dev` (workerd) | oui (+ mobile si PWA) | oui | non |
+| E2E Playwright | oui, contre `vite dev` (workerd) | oui (+ mobile si PWA) | oui | oui, contre le site construit (CI-14) |
 | Job « Worker de synchronisation » | non | oui | oui | non |
 | Déploiement | Cloudflare (+ smoke test, tag `deploy-N`) + Pages | Pages + Worker (si `worker/` a changé) | Pages + Worker | Pages |
 
@@ -99,7 +99,7 @@ Ce qui est **commun à toutes les familles** : noms de jobs, ruleset, audit, Cod
 | CI-01 | `lint` | Linter | tous |
 | CI-02 | `typecheck` | Vérification des types | tous sauf site statique |
 | CI-03 | `unit-tests` | Tests unitaires + couverture | tous |
-| CI-04 | `e2e-tests` | Tests fonctionnels (Playwright) | tous sauf site statique |
+| CI-04 | `e2e-tests` | Tests fonctionnels (Playwright) | tous (site statique : CI-14) |
 | CI-05 | `mutation-testing` | Mutation testing (logique pure) | tous |
 | CI-06 | `audit` | Audit des dépendances | tous |
 | CI-07 | `worker-tests` | Worker de synchronisation | SPA et JS sans build avec Worker de synchro |
@@ -113,6 +113,7 @@ Ce qui est **commun à toutes les familles** : noms de jobs, ruleset, audit, Cod
 | CI-10 | Audit en deux commandes dans le même job : `npm audit --omit=dev --audit-level=moderate` (production), puis l'audit complet au niveau `high` par `node .github/scripts/audit-check.mjs --level=high` (tout, CI-13). Un avis de production sans correctif se documente à côté de la commande ; un avis de développement sans correctif passe par CI-13. |
 | CI-11 | Artefacts conservés 14 jours ; sur PR, upload de `pr-build-preview` (7 jours). |
 | CI-12 | Playwright : `webServer` = `vite dev --port 5173 --strictPort --host 127.0.0.1` (`localhost` se résout en IPv6 seul sur les runners), timeout 120 s, `retries: 1` et `forbidOnly` en CI, `trace: "on-first-retry"`. |
+| CI-14 | **Site statique : Playwright contre le site construit.** Il n'y a pas de serveur de dev : `npm run build` produit le dossier publié (`_site/`) et le `webServer` de [`playwright.static.config.js`](templates/playwright.static.config.js) le sert avec `python3 -m http.server <port> --bind 127.0.0.1 --directory _site` (aucune dépendance de plus ; `127.0.0.1` pour la raison de CI-12). On teste ce qui est **réellement publié**, pas les sources. Le job `e2e-tests` fait `npm ci`, `npx playwright install --with-deps chromium`, `npm run build`, `npm run test:e2e`, puis envoie `playwright-report/` (14 jours). Un projet par thème (`colorScheme: "light"` et `"dark"`, A11Y-05). Les tests couvrent ce que jsdom ne voit pas : axe-core (A11Y-02), clavier et focus (A11Y-03), contraste réel, reflow à 320 px (A11Y-06), chemins relatifs sous un sous-dossier de Pages. « Tests fonctionnels (Playwright) » est un **check requis** du ruleset et `build` en dépend (`needs`). Raison : sans navigateur, une page « verte » en jsdom peut avoir un contraste, un focus ou un débordement cassés ; les règles A11Y-02, 03, 05 et 06 ne se vérifient que là. Vérifier : `playwright.config.js` avec `webServer` sur `_site`, script `test:e2e`, job `e2e-tests`. |
 | CI-13 | **Un avis sans correctif ne se contourne pas en baissant le seuil, il s'exempte par écrit.** [`audit-check.mjs`](templates/.github/scripts/audit-check.mjs) (identique dans tous les dépôts) remplace `npm audit --audit-level=high` dans `ci.yml` et `audit.yml` : il échoue sur tout avis de gravité `high` ou plus, sauf ceux de [`.github/audit-exceptions.json`](templates/.github/audit-exceptions.json) (`{ "id": "GHSA-…", "reason": "…", "expires": "AAAA-MM-JJ" }`, `[]` par défaut). Une exception a une **raison** et une **date d'expiration** (30 jours au plus, à renouveler après vérification qu'aucun correctif n'est sorti) ; expirée, elle ne protège plus et l'audit repasse au rouge ; sans effet (l'avis a disparu), elle est signalée pour être retirée. Réservé aux dépendances de **développement** : l'audit de production (CI-10) n'a pas d'exception. Raison : un avis publié sans version corrigée (cas du § 6) laisse l'audit rouge sur toutes les PR sans aucune action possible ; baisser le seuil masquerait aussi tous les futurs avis, alors qu'une exception nomme un seul avis et expire. Site statique (ESLint) : déclarer `.github/scripts/**/*.mjs` avec les globaux Node dans `eslint.config.js`, sinon le linter rejette `process` et `console` (`no-undef`). Vérifier : `audit-check.mjs` identique au modèle et appelé par `ci.yml`. |
 
 ### 3.6 Sécurité (`SEC-*`)
@@ -289,7 +290,7 @@ Chaque étape est vérifiable avant la suivante. Les seuils sont posés **avant*
 2. **Lint, architecture et types** — LINT-01, LINT-02, ARCH-01…03. Vérifier : `npm run lint && npm run typecheck`.
 3. **Découpage** — `shared/`, `worker/` (réducteur pur + coque), `src/`. Décider ce qui est unitaire et ce qui est e2e ; l'écrire dans `CLAUDE.md` (DOC-01).
 4. **Vitest à 100 %** — COV-01…COV-05 ([§ 7](#7-fichiers-de-référence)). Vérifier : `npm run test:coverage`.
-5. **Playwright** — CI-12, A11Y-02 ([§ 7](#7-fichiers-de-référence)). Vérifier : `npm run test:e2e`.
+5. **Playwright** — CI-12 (CI-14 pour un site statique), A11Y-02 ([§ 7](#7-fichiers-de-référence)). Vérifier : `npm run test:e2e`.
 6. **Stryker + matrice** — MUT-01…MUT-09 ([§ 7](#7-fichiers-de-référence)). Vérifier : `MUTATE=<module> npx stryker run`, puis `node .github/scripts/mutation-matrix.mjs`.
 7. **`ci.yml`** aux noms du standard — CI-01…CI-11 ([§ 7](#7-fichiers-de-référence)).
 8. **`codeql.yml`, `audit.yml`, `dependabot.yml`, `node-updates.yml`, `major-updates.yml`** — SEC-01…SEC-04, UPD-01…04, actions épinglées dès le départ ; créer le secret `UPDATE_TOKEN`.
@@ -345,6 +346,7 @@ Principe : **une règle ou une famille de règles par PR**, CI verte entre chaqu
 - **Architecture exécutable muette** : avec TypeScript 7, `depcruise` sans `@swc/core` annonce « 0 modules cruised » et réussit. Vérifier que le nombre de modules analysés n'est pas nul (ARCH-02). Découvert au rejeu sur une application.
 - **Renommer un check requis** : toutes les PR attendent indéfiniment ; appliquer le ruleset avant de fusionner (GIT-03).
 - **Serveur de dev invisible en CI** : sans `--host 127.0.0.1`, Playwright attend en vain (CI-12).
+- **Site statique testé par ses sources** : un test e2e lancé sur le dossier source passe alors que le site publié est cassé (fichier oublié dans la liste de copie du build, chemin absolu qui échoue sous `/<dépôt>/`). Tester `_site/` après `npm run build` (CI-14). Découvert à la création d'un site de checklist.
 - **Dependabot sans préfixe sur une entrée** : `commit-message` se règle par entrée `package-ecosystem`, sans héritage. Une entrée oubliée (typiquement `npm` à la racine, quand `/worker` et `github-actions` l'avaient) ouvre des PR « Bump … » qui échouent à « Titre de PR conventionnel » et « Commits conventionnels » (VER-04). Corriger l'entrée, puis `@dependabot rebase` sur les PR ouvertes (le titre est régénéré). Découvert sur trois dépôts dont seules les entrées secondaires étaient configurées (VER-06).
 - **PR de bot sans CI** : une PR ouverte par un workflow avec `GITHUB_TOKEN` ne déclenche aucun workflow, donc les checks requis n'arrivent jamais et la PR reste bloquée. Jeton dédié (UPD-02). Un projet PHP l'évite avec un secret propre à sa PR de déploiement.
 - **Exemple de clé dans la doc** : un README de backend PHP contenait un exemple de clé d'API qui ressemblait à une vraie. Toujours un placeholder (`<votre-clé>`) ; révoquer si c'était une vraie.
@@ -384,6 +386,7 @@ Les modèles sont de **vrais fichiers** dans ce dépôt, à copier puis adapter.
 | MUT-10 | [`templates/.github/scripts/mutation-select.mjs`](templates/.github/scripts/mutation-select.mjs) | **rien** : identique dans tous les dépôts (lit `targets` de `stryker.config.mjs`) |
 | CI-01…11, MUT-09 | [`templates/.github/workflows/ci.yml`](templates/.github/workflows/ci.yml) | retirer les jobs sans objet ; chemin de l'aperçu de build (`dist/client`) ; `worker-tests` si Worker de synchro |
 | CI-12 | [`templates/playwright.config.ts`](templates/playwright.config.ts) | `testDir`, projets |
+| CI-14 | [`templates/playwright.static.config.js`](templates/playwright.static.config.js) | port, dossier servi, projets (thèmes) |
 | SEC-03 | [`templates/.github/workflows/codeql.yml`](templates/.github/workflows/codeql.yml) | langages |
 | SEC-04, CI-10 | [`templates/.github/workflows/audit.yml`](templates/.github/workflows/audit.yml) | — |
 | CI-13 | [`templates/.github/scripts/audit-check.mjs`](templates/.github/scripts/audit-check.mjs), [`templates/.github/audit-exceptions.json`](templates/.github/audit-exceptions.json) | **rien** pour le script (identique partout) ; les exceptions du projet |
@@ -473,3 +476,4 @@ Ce dépôt ne contient **aucun état par projet** : chaque projet suit son propr
 | 3.11 | 2026-11-17 | Mineure, tirée du constat de trois dépôts sans auto-merge et deux acceptant le squash : GIT-08 (auto-merge, rebase seul, suppression de branche), commande d'application, vérification par `gh api` dans `check-conformity.sh`. Aucun nom de check modifié. |
 | 3.12 | 2026-11-18 | Mineure : accessibilité (§ 3.15, A11Y-01…10), cible WCAG 2.2 AA, chaque règle rattachée à ses critères et niveaux (les conventions du guide distinguées) : HTML sémantique et lint, axe-core dans les tests e2e, clavier et focus, noms accessibles, contraste par thème, zoom et cibles tactiles, mouvement réduit, annonces d'état, SPA, revue manuelle. Exemple `examples/a11y.example.spec.ts` ; `check-conformity.sh` vérifie `@axe-core/playwright`. Aucun nom de check modifié. |
 | 3.13 | 2026-11-18 | Mineure, tirée du rejeu sur deux dépôts de scripts et d'images : famille « sans Node » (§ 2), dont les règles sans objet se déclarent dans `CLAUDE.md` ; `check-conformity.sh` lit ces écarts (DOC-04, COV, MUT, CI-13, VER-09, UPD-01/04) ; piège Firefox sans focus de fenêtre (§ 6). Aucun nom de check modifié. |
+| 3.14 | 2026-11-18 | Mineure, tirée de la création d'un site statique accessible : CI-14 (le site statique passe aussi par Playwright, contre le site construit `_site/` servi par `python3 -m http.server`, un projet par thème), modèle `templates/playwright.static.config.js`, CI-04 « tous », piège « site testé par ses sources » (§ 6). Le ruleset exigeait déjà « Tests fonctionnels (Playwright) » : aucun nom de check modifié. |

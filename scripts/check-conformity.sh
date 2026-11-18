@@ -23,15 +23,17 @@ tpl="$here/../templates"
 for d in "$@"; do
   n=$(basename "$d")
   [ -d "$d/.github/workflows" ] || { echo "KO  $n dossier .github/workflows absent"; fail=1; continue; }
-  # Famille : PHP si composer.json sans package.json, sinon npm
+  # Famille : PHP si composer.json sans package.json ; sans Node si aucun des deux ; sinon npm
   php=0; [ -f "$d/composer.json" ] && [ ! -f "$d/package.json" ] && php=1
+  nonode=0; [ ! -f "$d/composer.json" ] && [ ! -f "$d/package.json" ] && nonode=1
 
   # --- Commun aux deux familles
   [ -f "$d/.github/dependabot.yml" ]; check "$n" "SEC-02 dependabot.yml" $? ""
   [ -f "$d/.github/rulesets/main.json" ]; check "$n" "GIT-01 ruleset versionné" $? ""
   bad=$(unpinned "$d/.github")
   [ "$bad" -eq 0 ]; check "$n" "SEC-01 actions épinglées par SHA" $? "($bad ligne(s))"
-  { [ -d "$d/doc" ] && grep -q 'doc/' "$d/CLAUDE.md" 2>/dev/null; }; check "$n" "DOC-04 doc/ présent et cité dans CLAUDE.md" $? ""
+  if [ "$nonode" -eq 1 ] && declared 'DOC-04'; then echo "--  $n DOC-04 écart déclaré"
+  else { [ -d "$d/doc" ] && grep -q 'doc/' "$d/CLAUDE.md" 2>/dev/null; }; check "$n" "DOC-04 doc/ présent et cité dans CLAUDE.md" $? ""; fi
   # --- Réglages du dépôt (GIT-08), lus sur GitHub
   slug=$(git -C "$d" remote get-url origin 2>/dev/null | sed -E 's#^(git@github.com:|https://github.com/)##; s#\.git$##')
   if command -v gh >/dev/null 2>&1 && [ -n "$slug" ] && st=$(gh api "repos/$slug" -q '"\(.allow_auto_merge) \(.allow_rebase_merge) \(.allow_squash_merge) \(.allow_merge_commit) \(.delete_branch_on_merge)"' 2>/dev/null); then
@@ -64,6 +66,16 @@ for d in "$@"; do
     fi
     { [ -f "$d/.commitlintrc.json" ] && [ -f "$d/.github/workflows/conventional_commits.yml" ]; }; check "$n" "GIT-07 commitlint + workflow" $? ""
     { [ -f "$d/.github/workflows/infra_updates.yml" ] || [ -f "$d/.github/workflows/infra-updates.yml" ]; }; check "$n" "UPD-01 workflow de montée de PHP" $? ""
+    continue
+  fi
+
+  if [ "$nonode" -eq 1 ]; then
+    # --- Famille sans Node : scripts et images. Les règles sans objet se déclarent dans CLAUDE.md.
+    [ -f "$d/.github/workflows/ci.yml" ] || exists_any "$d"/.github/workflows/*.yml; check "$n" "CI workflow présent" $? ""
+    for r in COV MUT CI-13 ARCH-01 VER-09 UPD-01 UPD-04; do
+      if declared "$r"; then echo "--  $n $r écart déclaré (famille sans Node)"
+      else echo "KO  $n $r ni appliqué ni déclaré dans CLAUDE.md (« Écarts au guide »)"; fail=1; fi
+    done
     continue
   fi
 

@@ -20,7 +20,7 @@ templates/            fichiers à copier, tels qu'ils tournent en production
   .github/audit-exceptions.json  exceptions d'audit datées (CI-13)
   .github/rulesets/   main.json
   .github/dependabot.yml
-  vitest.config.ts · stryker.config.mjs · playwright.config.ts · .dependency-cruiser.cjs · CLAUDE.md
+  vitest.config.ts · stryker.config.mjs · playwright.config.ts · playwright.static.config.js (site statique, CI-14) · .dependency-cruiser.cjs · CLAUDE.md
   docs/               modèle de spec/plan daté
   php/                famille backend PHP/Symfony (squelette qui démarre et passe tout au vert) : Makefile, Docker, configs qualité, tools/, workflows (qualité, release, déploiement, mises à jour), CLAUDE.md et doc/
   php-ui/             en plus pour un backend PHP avec interface : tests navigateur Chrome + Firefox, validation W3C

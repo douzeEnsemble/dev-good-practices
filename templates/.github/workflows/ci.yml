@@ -71,6 +71,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+      # Site statique (CI-14) : construire d'abord, les tests tournent sur `_site/`.
+      # - run: npm run build
       - run: npm run test:e2e
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7

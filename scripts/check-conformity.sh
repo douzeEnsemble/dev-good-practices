@@ -116,6 +116,14 @@ for d in "$@"; do
       grep -rlq '@axe-core/playwright' "$d/e2e" "$d/tests" "$d/test" 2>/dev/null; check "$n" "A11Y-02 un test e2e appelle axe" $? ""
     fi
   fi
+  # --- Site statique (CI-14) : html-validate sans Vite = site statique, testé en Playwright sur _site/
+  if grep -q '"html-validate"' "$d/package.json" 2>/dev/null && ! ls "$d"/vite.config.* >/dev/null 2>&1; then
+    if declared 'CI-14'; then echo "--  $n CI-14 écart déclaré"
+    else
+      grep -q '"@playwright/test"' "$d/package.json"; check "$n" "CI-14 Playwright en dépendance (site statique)" $? ""
+      grep -q '_site' "$d"/playwright.config.* 2>/dev/null; check "$n" "CI-14 Playwright sert le site construit (_site)" $? ""
+    fi
+  fi
   # --- Version affichée (VER-09)
   [ -f "$d/.github/scripts/app-version.mjs" ] && cmp -s "$d/.github/scripts/app-version.mjs" "$tpl/.github/scripts/app-version.mjs"; check "$n" "VER-09 app-version.mjs identique au modèle" $? ""
   [ -f "$d/.github/scripts/app-version.d.mts" ] && cmp -s "$d/.github/scripts/app-version.d.mts" "$tpl/.github/scripts/app-version.d.mts"; check "$n" "VER-09 app-version.d.mts identique au modèle" $? ""

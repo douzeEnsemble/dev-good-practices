@@ -1,6 +1,6 @@
 # Guide qualité
 
-> Version **3.12** · 18 novembre 2026 · tiré de projets web (Worker + Durable Object, SPA/PWA, JS sans build, site statique), complété par les pratiques d'un backend PHP/Symfony.
+> Version **3.13** · 18 novembre 2026 · tiré de projets web (Worker + Durable Object, SPA/PWA, JS sans build, site statique), complété par les pratiques d'un backend PHP/Symfony.
 > Référence vivante : à faire évoluer ici, puis à rejouer sur les projets (voir [§ 9 Faire évoluer le guide](#9-faire-évoluer-le-guide)).
 
 Ce guide sert à deux choses :
@@ -41,6 +41,8 @@ Règle d'or : **on ne baisse jamais un seuil pour avancer**. On étend le périm
 | Déploiement | Cloudflare (+ smoke test, tag `deploy-N`) + Pages | Pages + Worker (si `worker/` a changé) | Pages + Worker | Pages |
 
 **Couches et familles en plus.** Une SPA installable suit en plus [§ 3.12 PWA](#312-application-installable-pwa). Un backend PHP/Symfony est une famille à part ([§ 3.13](#313-backend-phpsymfony-php)) : mêmes principes et mêmes noms de checks (CI-03, CI-05, CI-06), outils PHP à la place des outils npm.
+
+**Dépôt de scripts ou d'images, sans Node ni PHP** (ni `package.json` ni `composer.json`, par exemple des scripts shell et des images). Il suit le tronc commun (ruleset, SHA épinglés, Dependabot sur `github-actions`, commits conventionnels, versionnement, GIT-08) et un `shellcheck`/`hadolint` à la place du lint. Les règles qui supposent du code testable ou des dépendances npm (COV, MUT, CI-13, ARCH-01/02, VER-09, UPD-01/04, DOC-04) n'ont pas d'objet : on les **déclare** dans `CLAUDE.md`, section « Écarts au guide », en citant chaque identifiant, avec la raison. `check-conformity.sh` lit ces écarts et ne les signale plus en `KO`. Une règle non citée reste un `KO` : un écart se déclare, il ne se suppose pas.
 
 Ce qui est **commun à toutes les familles** : noms de jobs, ruleset, audit, CodeQL, Dependabot, seuil 100 %, job de synthèse de mutation.
 
@@ -360,6 +362,7 @@ Principe : **une règle ou une famille de règles par PR**, CI verte entre chaqu
 - **Test aléatoire** : un nom tiré au hasard comparé à une valeur fixe échoue une fois sur N (1 échec sur 144 constaté). Choisir des valeurs que le générateur ne peut pas produire.
 - **jsdom partout ralentit tout** : l'activer par fichier (COV-04).
 - **Mises à jour pendant la frappe** : sans optimistic update, la diffusion de l'état peut écraser un champ en cours d'édition ; geler la carte qui a le focus.
+- **Firefox sans focus de fenêtre** : dans un conteneur Selenium/Firefox sans gestionnaire de fenêtres, la fenêtre n'a pas le focus système. `element.focus()` met bien `document.activeElement`, mais `:focus-visible` ne correspond pas et l'indicateur de focus (A11Y-03) n'est pas dessiné ; un test qui mesure le contour ou l'ombre échoue sur Firefox seul. Ne pas affaiblir le test : vérifier d'abord que `matches(':focus-visible')` est vrai et sauter le test sinon, en gardant la mesure sur Chrome. Découvert en ajoutant les tests de focus à une application PHP (PHP-14).
 - **Bibliothèques qui modifient leurs arguments** : Leaflet enrichit l'objet d'options passé à `setView` ; asserter avec `expect.objectContaining`. `L.DomEvent.stop` pose `originalEvent._stopped`, pas `defaultPrevented`.
 
 ### Déploiement et exécution
@@ -431,6 +434,7 @@ Ce dépôt ne contient **aucun état par projet** : chaque projet suit son propr
 | VER-09 | `app-version.mjs`, `app-version.d.mts` et `wait-release.sh` identiques au modèle, `app-version.mjs` référencé par une config de build, `fetch-depth: 0` et appel de `wait-release.sh` dans `pages.yml` et `deploy.yml` |
 | VER-02/03/04/06 | `.releaserc.json` identique au modèle (hors `--prerelease` en PHP), `release.yml`, `conventional_commits.yml` identique au modèle, `.commitlintrc.json` identique, un `commit-message` par entrée de `dependabot.yml`, aucun plugin `git`/`changelog` (VER-05) |
 | PHP-01…08, GIT-07, UPD-01 | si `composer.json` sans `package.json` : workflows PHP présents, `make help`, `tools/`, niveau PHPStan, Deptrac, MSI 100, commitlint, montée de PHP |
+| COV, MUT, CI-13, ARCH-01, VER-09, UPD-01/04, DOC-04 | si ni `package.json` ni `composer.json` (dépôt de scripts ou d'images) : chaque règle doit être citée dans « Écarts au guide » de `CLAUDE.md`, sinon `KO` |
 | SEC-01 | toute action externe référencée par un SHA de 40 caractères (les deux familles) |
 | informatif | nombre de `Stryker disable` (MUT-06) ; part de commits conventionnels (GIT-07) |
 
@@ -468,3 +472,4 @@ Ce dépôt ne contient **aucun état par projet** : chaque projet suit son propr
 | 3.10 | 2026-11-17 | Mineure, tirée d'un incident : un projet à CI courte a déployé avant la création du tag et affichait la version précédente. VER-09 impose d'attendre le run « Release » du commit (`wait-release.sh`, `actions: read`) avant de construire ; modèles `pages.yml` et `deploy-cloudflare.yml` à jour, `check-conformity.sh` vérifie le script et l'étape. Aucun nom de check modifié. |
 | 3.11 | 2026-11-17 | Mineure, tirée du constat de trois dépôts sans auto-merge et deux acceptant le squash : GIT-08 (auto-merge, rebase seul, suppression de branche), commande d'application, vérification par `gh api` dans `check-conformity.sh`. Aucun nom de check modifié. |
 | 3.12 | 2026-11-18 | Mineure : accessibilité (§ 3.15, A11Y-01…10), cible WCAG 2.2 AA, chaque règle rattachée à ses critères et niveaux (les conventions du guide distinguées) : HTML sémantique et lint, axe-core dans les tests e2e, clavier et focus, noms accessibles, contraste par thème, zoom et cibles tactiles, mouvement réduit, annonces d'état, SPA, revue manuelle. Exemple `examples/a11y.example.spec.ts` ; `check-conformity.sh` vérifie `@axe-core/playwright`. Aucun nom de check modifié. |
+| 3.13 | 2026-11-18 | Mineure, tirée du rejeu sur deux dépôts de scripts et d'images : famille « sans Node » (§ 2), dont les règles sans objet se déclarent dans `CLAUDE.md` ; `check-conformity.sh` lit ces écarts (DOC-04, COV, MUT, CI-13, VER-09, UPD-01/04) ; piège Firefox sans focus de fenêtre (§ 6). Aucun nom de check modifié. |
